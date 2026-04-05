@@ -1,0 +1,171 @@
+# OpportunityScout — Founder Scoring Profile
+# This file defines what makes an opportunity a strong fit for THIS specific founder
+# Used by the scoring engine to calibrate Founder Fit dimension
+
+founder:
+  name: "Fatih"
+  
+  # ─── Core Competencies (what you can DO) ──────────────────
+  competencies:
+    manufacturing_operations:
+      level: expert     # 20+ years
+      specifics:
+        - CNC programming and operation (5-axis)
+        - Edge banding and coating systems
+        - Coil coating paint production
+        - Supply chain management (Turkey → UK/UAE/USA)
+        - Quality control and compliance
+        - Factory floor optimization
+      boost_keywords: [manufacturing, production, CNC, coating, factory, supply-chain]
+
+    it_infrastructure:
+      level: expert     # 20+ years self-taught
+      specifics:
+        - Cisco switching and routing
+        - VMware ESXi virtualization
+        - Horizon VDI deployment
+        - Veeam Backup management
+        - Palo Alto firewall configuration
+        - Cisco telephony (VoIP)
+        - Network architecture and security
+      boost_keywords: [IT-infrastructure, networking, virtualization, cybersecurity, VDI, sysadmin]
+
+    software_development:
+      level: advanced   # Former VB dev, now Python/automation
+      specifics:
+        - Python development
+        - n8n workflow automation
+        - Terraform / Infrastructure as Code
+        - AWS cloud services
+        - Claude API / LLM integration
+        - API development and integration
+        - Docker containerization
+      boost_keywords: [python, automation, n8n, terraform, aws, api, docker, claude, ai-development]
+
+    construction_domain:
+      level: expert     # Deep track record
+      specifics:
+        - UK Building Safety Act 2022
+        - Fire door compliance (FD30, FD60, BS 476)
+        - Intumescent coatings
+        - BTR furniture specification
+        - FF&E procurement and delivery
+        - BIM / Scan-to-BIM
+        - Fit-out project management
+        - Kitchen and bathroom design-to-manufacture
+      boost_keywords: [construction, fire-door, building-safety, BTR, FF&E, fitout, BIM, compliance]
+
+    business_development:
+      level: advanced
+      specifics:
+        - Cross-border trade (TR↔UK↔UAE↔USA)
+        - B2B sales to large developers
+        - Government tender processes
+        - Framework agreements (Eroğlu model)
+        - Import/export logistics
+        - Company formation (UK, US, UAE)
+      boost_keywords: [b2b, cross-border, trade, export, tender, framework-agreement]
+
+  # ─── Assets (what you HAVE) ───────────────────────────────
+  physical_assets:
+    - name: "Turkish Factory"
+      description: "20,000 m² with 5-axis CNC, edge banding, coating, coil coating paint"
+      advantage: "Produce at Turkish cost, sell at UK/UAE prices"
+      boost_keywords: [manufacturing, furniture, kitchen, fire-door-production, coil-coating]
+    
+    - name: "Coil Coating Facility"
+      description: "2-year investment, specialized paint/coating capability"
+      advantage: "Rare capability — intumescent coatings, specialized finishes"
+      boost_keywords: [coating, paint, intumescent, fire-protection, surface-finish]
+
+  brand_assets:
+    - name: "Verstile"
+      type: kitchen_brand
+      markets: [Turkey]
+    - name: "Zivella UK"
+      type: uk_entity
+      markets: [UK]
+    - name: "Gorhan Holding LLC"
+      type: us_entity
+      markets: [USA, Miami]
+    - name: "Anka Energy LLC"
+      type: uae_entity  
+      markets: [UAE, Dubai]
+    - name: "TilesDIY.co.uk"
+      type: acquisition_target
+      markets: [UK]
+      note: "10 showrooms across London/SE England"
+
+  network_assets:
+    - "Sadi Bey — UK partner, construction/property network"
+    - "Eroğlu Yapı — Framework agreement, 1B TL annual"
+    - "Turkish manufacturer network"
+    - "UK construction/fitout contacts"
+    - "UAE hospitality contacts"
+    - "Miami restaurant industry contacts"
+
+  # ─── Geographic Scoring Rules ─────────────────────────────
+  geography:
+    home_bases: [Istanbul, London]
+    strong_markets: [UK, Turkey, UAE, USA]
+    cross_border_advantage: >
+      Opportunity scores +2 on Geographic Leverage if it specifically 
+      exploits the cost differential between Turkish production and 
+      UK/UAE selling prices, OR if it requires knowledge of both 
+      Turkish manufacturing and UK regulatory requirements.
+
+  # ─── Anti-Patterns (what to AVOID) ─────────────────────────
+  anti_patterns:
+    - "Requires large upfront capital (>$20K) without clear revenue path"
+    - "Requires hiring a team before revenue"
+    - "Pure consumer play with expensive customer acquisition"
+    - "Requires physical presence in a market where founder has no network"
+    - "Commodity business with no differentiation"
+    - "Trendy AI wrapper with no real moat"
+    - "Requires deep expertise founder doesn't have (e.g., biotech, fintech regulation)"
+
+  # ─── Sweet Spots (instant high scores) ─────────────────────
+  sweet_spots:
+    - pattern: "AI + UK regulation compliance"
+      min_score_boost: 15
+      reason: "Direct intersection of AI skills and construction domain knowledge"
+    
+    - pattern: "Turkish production + UK market"
+      min_score_boost: 12
+      reason: "Core cross-border arbitrage advantage"
+    
+    - pattern: "n8n/automation consulting or products"
+      min_score_boost: 10
+      reason: "Immediate skill monetization, already on Upwork pipeline"
+    
+    - pattern: "Fire door / intumescent innovation"
+      min_score_boost: 12
+      reason: "Deep domain expertise + factory capability + regulatory tailwind"
+    
+    - pattern: "BTR furniture supply chain"
+      min_score_boost: 10
+      reason: "Proven capability, existing market research, David Phillips gap"
+    
+    - pattern: "AI agents for construction workflows"
+      min_score_boost: 12
+      reason: "Combines AI dev skills with construction domain expertise"
+    
+    - pattern: "Building Safety Act compliance tools"
+      min_score_boost: 15
+      reason: "Regulatory deadline + AI + construction knowledge = perfect storm"
+
+    - pattern: "Scan-to-BIM / point cloud / 3D scanning services"
+      min_score_boost: 14
+      reason: "Topcon CR-P1 M evaluated, ClearEdge3D pipeline designed, Revit learning active, BuildThread AI concept"
+
+    - pattern: "Digital twin / golden thread compliance"
+      min_score_boost: 14
+      reason: "BuildThread AI core concept, BSA golden thread mandate, deep regulatory knowledge"
+
+    - pattern: "BIM consulting / ISO 19650 implementation"
+      min_score_boost: 10
+      reason: "Civil engineering background + construction domain + AI automation of BIM workflows"
+
+    - pattern: "AI-automated point cloud to Revit modeling"
+      min_score_boost: 15
+      reason: "Intersection of AI dev skills + Scan-to-BIM domain + 30-50% cost undercut potential"

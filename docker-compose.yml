@@ -1,0 +1,68 @@
+# OpportunityScout — Full Stack Deployment
+# Usage: docker-compose up -d
+
+version: '3.8'
+
+services:
+  # ─── OpportunityScout Agent ──────────────────────────────
+  scout:
+    build: .
+    container_name: opportunity-scout
+    env_file: .env
+    volumes:
+      - scout-data:/opt/opportunity-scout/data
+      - scout-logs:/opt/opportunity-scout/logs
+      - ./config:/opt/opportunity-scout/config:ro
+      - ./SYSTEM_PROMPT.md:/opt/opportunity-scout/SYSTEM_PROMPT.md:ro
+    restart: unless-stopped
+    # Default: run the Telegram bot listener
+    command: python -m src.cli serve
+    networks:
+      - scout-net
+
+  # ─── n8n Workflow Scheduler ──────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: scout-n8n
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - GENERIC_TIMEZONE=UTC
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - scout-data:/opt/opportunity-scout/data
+      # Mount scout code so n8n can execute commands
+      - .:/opt/opportunity-scout:ro
+    ports:
+      - "5678:5678"
+    restart: unless-stopped
+    networks:
+      - scout-net
+
+  # ─── PostgreSQL (for n8n persistence) ────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: scout-postgres
+    environment:
+      - POSTGRES_USER=${PG_USER:-scout}
+      - POSTGRES_PASSWORD=${PG_PASSWORD:-scoutpass}
+      - POSTGRES_DB=n8n
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - scout-net
+
+volumes:
+  scout-data:
+  scout-logs:
+  n8n-data:
+  postgres-data:
+
+networks:
+  scout-net:
+    driver: bridge

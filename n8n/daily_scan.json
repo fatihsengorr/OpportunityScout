@@ -1,0 +1,71 @@
+{
+  "name": "OpportunityScout — Daily Scan + Serendipity",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily Trigger (06:00 UTC)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/opportunity-scout && python -m src.cli scan --tier 1"
+      },
+      "name": "Run Tier 1 Scan",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/opportunity-scout && python -m src.cli serendipity --mode daily"
+      },
+      "name": "Serendipity Daily",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [690, 300],
+      "notes": "Broad cross-sector scan with Sonnet (~$0.30)"
+    },
+    {
+      "parameters": {
+        "command": "cd /opt/opportunity-scout && python -m src.cli digest"
+      },
+      "name": "Generate Digest",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Daily Trigger (06:00 UTC)": {
+      "main": [
+        [{ "node": "Run Tier 1 Scan", "type": "main", "index": 0 }]
+      ]
+    },
+    "Run Tier 1 Scan": {
+      "main": [
+        [{ "node": "Serendipity Daily", "type": "main", "index": 0 }]
+      ]
+    },
+    "Serendipity Daily": {
+      "main": [
+        [{ "node": "Generate Digest", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "UTC"
+  }
+}

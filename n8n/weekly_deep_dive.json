@@ -1,0 +1,66 @@
+{
+  "name": "OpportunityScout — Weekly Full Cycle",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "cronExpression", "expression": "0 3 * * 1" }] }
+      },
+      "name": "Monday 03:00 UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": { "command": "cd /opt/opportunity-scout && python -m src.cli scan --tier 2" },
+      "name": "Tier 2 Scan",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [470, 300]
+    },
+    {
+      "parameters": { "command": "cd /opt/opportunity-scout && python -m src.cli evolve" },
+      "name": "Evolution",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [690, 300]
+    },
+    {
+      "parameters": { "command": "cd /opt/opportunity-scout && python -m src.cli generate --count 3" },
+      "name": "Generate Models",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [910, 300]
+    },
+    {
+      "parameters": { "command": "cd /opt/opportunity-scout && python -m src.cli serendipity --mode deep" },
+      "name": "Serendipity Deep",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1130, 300]
+    },
+    {
+      "parameters": { "command": "cd /opt/opportunity-scout && python -m src.cli localize --count 5" },
+      "name": "Localization Scan",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1350, 300],
+      "notes": "Samwer lens: find proven global models missing in UK/Turkey"
+    },
+    {
+      "parameters": { "command": "cd /opt/opportunity-scout && python -m src.cli weekly" },
+      "name": "Weekly Report",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1570, 300]
+    }
+  ],
+  "connections": {
+    "Monday 03:00 UTC": { "main": [[{ "node": "Tier 2 Scan", "type": "main", "index": 0 }]] },
+    "Tier 2 Scan": { "main": [[{ "node": "Evolution", "type": "main", "index": 0 }]] },
+    "Evolution": { "main": [[{ "node": "Generate Models", "type": "main", "index": 0 }]] },
+    "Generate Models": { "main": [[{ "node": "Serendipity Deep", "type": "main", "index": 0 }]] },
+    "Serendipity Deep": { "main": [[{ "node": "Localization Scan", "type": "main", "index": 0 }]] },
+    "Localization Scan": { "main": [[{ "node": "Weekly Report", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "saveManualExecutions": true, "timezone": "UTC" }
+}
