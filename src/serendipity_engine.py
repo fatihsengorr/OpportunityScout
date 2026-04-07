@@ -544,7 +544,7 @@ Format: {"opportunities": [...], "signals": [...], "cross_pollinations": [...]}"
         """Get this week's rotation focus."""
         rotation = self._sector_rotation.get('rotation', {})
         day = datetime.utcnow().day
-        week_num = min((day - 1) // 7 + 1, 4)  # 1-4
+        week_num = min((day - 1) // 7 + 1, 5)  # 1-5
         week_key = f"week_{week_num}"
         return rotation.get(week_key, rotation.get('week_1', {}))
 

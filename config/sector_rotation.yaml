@@ -89,5 +89,26 @@ rotation:
       - surface finishing
       - Industry 4.0
 
+  week_5:
+    name: "Manufacturing Innovation & Hardware Products"
+    sectors:
+      - 3D printing and additive manufacturing
+      - acoustic products and office pods
+      - prefab modular structures
+      - smart hardware products
+      - composite materials
+      - industrial design and product development
+    buyer_personas:
+      - "UK office space manager / facilities director"
+      - "European hardware distributor"
+      - "UK prefab home buyer / remote worker"
+    keywords:
+      - garden office prefab
+      - acoustic phone booth
+      - 3D printed parts manufacturing
+      - composite materials UK
+      - modular construction
+      - smart home hardware
+
 # Which week are we in? Calculate: (day_of_month - 1) // 7 + 1
-# Fallback: if month has 5th week, use week_4 sectors
+# Fallback: if month has 5th week, use week_5 sectors (manufacturing products)

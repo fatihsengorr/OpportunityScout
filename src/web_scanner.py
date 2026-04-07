@@ -82,7 +82,7 @@ class WebScanner:
         if not rotation:
             return {}
         day = datetime.utcnow().day
-        week_num = min((day - 1) // 7 + 1, 4)  # 1-4
+        week_num = min((day - 1) // 7 + 1, 5)  # 1-5
         week_key = f"week_{week_num}"
         return rotation.get(week_key, rotation.get('week_1', {}))
 
