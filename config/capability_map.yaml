@@ -1,0 +1,189 @@
+# OpportunityScout — Capability Adjacency Map
+# Used by Capability Explorer to systematically discover opportunities
+# by starting from founder's capabilities and exploring outward.
+#
+# For each capability cluster: known applications + unexplored adjacent industries
+# The explorer picks the LEAST explored cluster and industry each cycle.
+
+capabilities:
+  it_infrastructure:
+    weight: 2.0  # Highest — most underexploited (20yr deep skill)
+    core_skills:
+      - Cisco switching/routing
+      - VMware ESXi virtualization
+      - Horizon VDI deployment
+      - Veeam Backup management
+      - Palo Alto firewall configuration
+      - VoIP telephony
+      - Network architecture & security
+    known_applications:
+      - managed IT services for SMEs
+      - cybersecurity consulting
+    adjacent_industries:
+      - managed_soc_service:
+          description: "SOC-as-a-service for UK SMEs — monitoring, incident response"
+          explored: false
+      - vdi_remote_work:
+          description: "Virtual desktop infrastructure for distributed teams"
+          explored: false
+      - healthcare_it:
+          description: "NHS-adjacent IT services, DSPT compliance"
+          explored: false
+      - legal_it_compliance:
+          description: "IT compliance for UK law firms (SRA requirements)"
+          explored: false
+      - education_it:
+          description: "School/university IT managed services"
+          explored: false
+      - hospitality_it:
+          description: "Hotel/restaurant POS and network infrastructure"
+          explored: false
+      - manufacturing_it:
+          description: "OT/IT convergence for factory networks"
+          explored: false
+      - disaster_recovery:
+          description: "DRaaS using Veeam + cloud expertise"
+          explored: false
+
+  ai_software:
+    weight: 1.5
+    core_skills:
+      - Python development
+      - n8n workflow automation
+      - Claude API / LLM integration
+      - Terraform / IaC
+      - AWS cloud services
+      - Docker containerization
+      - API development
+    known_applications:
+      - AI agents for businesses
+      - workflow automation consulting
+    adjacent_industries:
+      - legal_ai:
+          description: "AI tools for contract review, legal research"
+          explored: false
+      - accounting_automation:
+          description: "Automated bookkeeping, receipt processing, tax prep"
+          explored: false
+      - recruitment_ai:
+          description: "AI-powered CV screening, candidate matching"
+          explored: false
+      - real_estate_ai:
+          description: "Property valuation, market analysis, lead scoring"
+          explored: false
+      - insurance_automation:
+          description: "Claims processing, underwriting automation"
+          explored: false
+      - logistics_optimization:
+          description: "Route optimization, warehouse automation"
+          explored: false
+      - content_generation_saas:
+          description: "Industry-specific content tools (not generic)"
+          explored: false
+      - customer_success_ai:
+          description: "Churn prediction, upsell detection for SaaS"
+          explored: false
+
+  cross_border:
+    weight: 1.5
+    core_skills:
+      - Import/export logistics (TR↔UK↔UAE↔US)
+      - B2B international sales
+      - Company formation in 4 countries
+      - Government tender processes
+      - Framework agreements
+    known_applications:
+      - furniture export TR→UK
+      - fire door manufacturing TR→UK
+    adjacent_industries:
+      - turkish_fmcg_export:
+          description: "Fast-moving consumer goods from Turkey to UK/UAE"
+          explored: false
+      - private_label_cosmetics:
+          description: "Turkish cosmetics manufacturers → UK brands"
+          explored: false
+      - textile_trade:
+          description: "Turkish textile/fashion manufacturing for UK brands"
+          explored: false
+      - halal_food_trade:
+          description: "Turkish halal food products → UAE market"
+          explored: false
+      - medical_devices:
+          description: "Turkish medical device manufacturers → UK NHS"
+          explored: false
+      - automotive_parts:
+          description: "Turkish auto parts manufacturers → EU/UK aftermarket"
+          explored: false
+      - marketplace_arbitrage:
+          description: "Amazon/eBay arbitrage between TR manufacturing and UK/US selling"
+          explored: false
+      - renewable_energy_equipment:
+          description: "Solar/wind equipment sourcing from Turkey"
+          explored: false
+
+  manufacturing:
+    weight: 1.0
+    core_skills:
+      - 5-axis CNC programming/operation
+      - Edge banding and coating systems
+      - Coil coating paint production
+      - Factory floor optimization
+      - Supply chain management
+      - Quality control
+    known_applications:
+      - furniture manufacturing
+      - kitchen manufacturing
+      - fire door production
+      - intumescent coatings
+    adjacent_industries:
+      - ev_battery_housing:
+          description: "CNC-machined housings for EV battery modules"
+          explored: false
+      - aerospace_subcontract:
+          description: "CNC machining subcontract work for aerospace"
+          explored: false
+      - architectural_metalwork:
+          description: "Coil-coated architectural panels, facades"
+          explored: false
+      - signage_manufacturing:
+          description: "CNC-cut signage and display manufacturing"
+          explored: false
+      - packaging_innovation:
+          description: "Custom packaging solutions using CNC + coating"
+          explored: false
+      - marine_coatings:
+          description: "Specialty marine/anti-corrosion coatings"
+          explored: false
+      - appliance_panels:
+          description: "Coil-coated panels for white goods manufacturers"
+          explored: false
+
+  construction:
+    weight: 0.5  # Lowest — already over-explored
+    core_skills:
+      - UK Building Safety Act compliance
+      - Fire door certification (FD30/FD60)
+      - BIM / Scan-to-BIM
+      - BTR furniture specification
+      - FF&E procurement
+      - Fit-out project management
+    known_applications:
+      - fire door compliance tools
+      - BTR furniture supply
+      - building safety consulting
+    adjacent_industries:
+      - proptech_compliance:
+          description: "PropTech tools for landlord compliance management"
+          explored: false
+      - retrofit_coordination:
+          description: "EPC upgrade coordination for social housing"
+          explored: false
+      - modular_construction:
+          description: "Off-site manufactured building modules"
+          explored: false
+
+# Exploration tracking:
+# After each exploration, the capability_explorer updates this map
+# (marks industries as explored) and logs results in KB.
+# Self-improver periodically asks Claude to suggest NEW adjacent
+# industries to add to this map.

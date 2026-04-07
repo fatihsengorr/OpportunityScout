@@ -1,41 +1,34 @@
 # OpportunityScout — Source Registry
 # Each source has: name, type, url/query, tier, sector tags, signal_score (evolves over time)
+#
+# Distribution: Tier 1 = 20 (daily) | Tier 2 = 34 (weekly) | Tier 3 = 26 (monthly) | Total = 80
+# API cost target: Tier 1 ~$0.50/day (web_search + RSS/API)
 
 sources:
 
   # ═══════════════════════════════════════════════════════════
-  # TIER 1 — HIGH SIGNAL (scanned every cycle)
+  # TIER 1 — HIGH SIGNAL (scanned daily) — 20 sources
   # ═══════════════════════════════════════════════════════════
 
-  # ─── UK Government & Tenders ──────────────────────────────
+  # ─── UK Government & Tenders (merged) ─────────────────────
   - name: "Find a Tender UK"
     type: rss_or_scrape
     url: "https://www.find-tender.service.gov.uk/Search/Results"
     query_params:
-      keywords: "furniture,fitout,FF&E,fire doors,building materials,construction,renovation"
+      keywords: "furniture,fitout,FF&E,fire doors,building materials,BIM,digital twin,3D scanning"
     tier: 1
-    tags: [uk-tenders, construction, fitout, government]
-    signal_score: 8
+    tags: [uk-tenders, construction, fitout, government, bim, digital-twin]
+    signal_score: 9
     scan_frequency: daily
 
-  - name: "Contracts Finder"
+  - name: "Contracts Finder UK"
     type: rss_or_scrape
     url: "https://www.contractsfinder.service.gov.uk/Search/Results"
     query_params:
-      keywords: "furniture supply,fitout,kitchen,bathroom,fire door,building safety"
+      keywords: "furniture,fitout,kitchen,fire door,building safety,BIM,building information,scan to BIM"
     tier: 1
-    tags: [uk-tenders, government, procurement]
-    signal_score: 8
-    scan_frequency: daily
-
-  - name: "UK Planning Applications"
-    type: api_or_scrape
-    url: "https://www.planningportal.co.uk/"
-    query_params:
-      types: "major_developments,hotel,residential,commercial"
-    tier: 1
-    tags: [uk-planning, construction, development]
-    signal_score: 7
+    tags: [uk-tenders, government, procurement, bim, scan-to-bim]
+    signal_score: 9
     scan_frequency: daily
 
   # ─── Construction & Property News ─────────────────────────
@@ -47,19 +40,11 @@ sources:
     signal_score: 8
     scan_frequency: daily
 
-  - name: "Building Magazine"
-    type: rss
-    url: "https://www.building.co.uk/rss"
-    tier: 1
-    tags: [uk-construction, news, policy]
-    signal_score: 7
-    scan_frequency: daily
-
   - name: "PBC Today"
-    type: rss_or_scrape
+    type: rss
     url: "https://www.pbctoday.co.uk/feed/"
     tier: 1
-    tags: [uk-construction, building-safety, compliance]
+    tags: [uk-construction, building-safety, compliance, bim, digital-construction]
     signal_score: 8
     scan_frequency: daily
 
@@ -71,45 +56,12 @@ sources:
     signal_score: 7
     scan_frequency: daily
 
-  - name: "BTR News / CoStar"
-    type: web_search
-    query: "UK BTR build to rent new developments contracts awarded"
-    tier: 1
-    tags: [btr, uk-property, furniture-demand]
-    signal_score: 9
-    scan_frequency: daily
-
-  # ─── Fire Safety & Building Safety Act ────────────────────
-  - name: "UK Building Safety Act Updates"
-    type: web_search
-    query: "UK Building Safety Act 2022 update implementation golden thread 2026"
-    tier: 1
-    tags: [building-safety, regulation, compliance, fire-doors]
-    signal_score: 9
-    scan_frequency: daily
-
-  - name: "Fire Door Inspection Scheme"
-    type: web_search
-    query: "UK fire door inspection scheme FDIS third party certification"
-    tier: 1
-    tags: [fire-doors, compliance, certification]
-    signal_score: 8
-    scan_frequency: weekly
-
   # ─── AI & Tech ────────────────────────────────────────────
   - name: "Hacker News — Top"
     type: api
     url: "https://hacker-news.firebaseio.com/v0/topstories.json"
     tier: 1
     tags: [tech, startups, ai, saas]
-    signal_score: 7
-    scan_frequency: daily
-
-  - name: "Product Hunt — New"
-    type: web_search
-    query: "site:producthunt.com AI agent automation construction compliance launched 2026"
-    tier: 1
-    tags: [product-launches, ai, saas]
     signal_score: 7
     scan_frequency: daily
 
@@ -121,30 +73,14 @@ sources:
     signal_score: 7
     scan_frequency: daily
 
-  - name: "AI Business Ideas Twitter/X"
-    type: web_search
-    query: "AI business idea making money solo founder 2026 -course -ebook"
+  # ─── BIM & Digital Construction ───────────────────────────
+  - name: "AEC Magazine"
+    type: rss
+    url: "https://aecmag.com/feed/"
     tier: 1
-    tags: [ai, business-ideas, solo-founder]
-    signal_score: 6
+    tags: [bim, scan-to-bim, 3d-scanning, point-cloud, revit, software]
+    signal_score: 9
     scan_frequency: daily
-
-  # ─── Turkish Manufacturing & Trade ────────────────────────
-  - name: "Turkish Furniture Exporters"
-    type: web_search
-    query: "Turkey furniture export UK market growth 2026 MOSDER"
-    tier: 1
-    tags: [turkish-manufacturing, furniture, export]
-    signal_score: 8
-    scan_frequency: weekly
-
-  - name: "Turkish Building Materials Export"
-    type: web_search
-    query: "Turkey building materials sanitaryware export UK 2026"
-    tier: 1
-    tags: [turkish-manufacturing, building-materials, cross-border]
-    signal_score: 7
-    scan_frequency: weekly
 
   # ─── Reddit ───────────────────────────────────────────────
   - name: "r/entrepreneur"
@@ -177,217 +113,123 @@ sources:
     signal_score: 5
     scan_frequency: daily
 
-  # ═══════════════════════════════════════════════════════════
-  # TIER 2 — MEDIUM SIGNAL (scanned weekly)
-  # ═══════════════════════════════════════════════════════════
-
-  - name: "UK Companies House — New Registrations"
+  # ─── Web Search (max 5 in Tier 1) ────────────────────────
+  - name: "UK Building Safety Act & Golden Thread"
     type: web_search
-    query: "UK Companies House new company registration construction tech proptech SIC 2026"
-    tier: 2
-    tags: [uk-companies, market-signals, competition]
-    signal_score: 5
-    scan_frequency: weekly
+    query: "UK Building Safety Act golden thread digital record implementation enforcement 2026"
+    tier: 1
+    tags: [building-safety, regulation, compliance, fire-doors, golden-thread, bim]
+    signal_score: 9
+    scan_frequency: daily
 
-  - name: "UK Administration/Insolvency Notices"
+  - name: "UK BTR / Build to Rent"
     type: web_search
-    query: "UK company administration insolvency construction furniture fitout 2026"
-    tier: 2
-    tags: [acquisitions, distressed-assets, market-gaps]
+    query: "UK BTR build to rent new developments contracts awarded furniture FF&E"
+    tier: 1
+    tags: [btr, uk-property, furniture-demand]
+    signal_score: 9
+    scan_frequency: daily
+
+  - name: "UK Fintech & Open Banking"
+    type: web_search
+    query: "UK fintech open banking PSD2 cross-border payments startup funding 2026"
+    tier: 1
+    tags: [fintech, payments, open-banking, uk, cross-border]
     signal_score: 7
-    scan_frequency: weekly
+    scan_frequency: daily
 
-  - name: "Upwork Trending Categories"
+  - name: "UK Cybersecurity & MSP Market"
     type: web_search
-    query: "Upwork trending skills high demand AI automation n8n 2026"
-    tier: 2
-    tags: [freelancing, n8n, automation, consulting]
+    query: "UK managed security services MSSP cybersecurity compliance startup SMB 2026"
+    tier: 1
+    tags: [cybersecurity, msp, it-services, compliance, uk]
+    signal_score: 7
+    scan_frequency: daily
+
+  - name: "AI Solo Founder Businesses"
+    type: web_search
+    query: "AI business solo founder making revenue profitable 2026 -course -ebook"
+    tier: 1
+    tags: [ai, business-ideas, solo-founder]
     signal_score: 6
-    scan_frequency: weekly
+    scan_frequency: daily
 
-  - name: "Y Combinator Batch Companies"
+  # ─── Chemicals & Chemistry ────────────────────────────────
+  - name: "Chemical Industry & Trade Trends"
     type: web_search
-    query: "Y Combinator latest batch construction AI compliance proptech 2026"
-    tier: 2
-    tags: [vc-signals, startups, competition]
-    signal_score: 7
-    scan_frequency: weekly
-
-  - name: "Innovate UK Funding Calls"
-    type: web_search
-    query: "Innovate UK funding competition construction digital AI 2026"
-    tier: 2
-    tags: [uk-grants, funding, innovation]
-    signal_score: 7
-    scan_frequency: weekly
-
-  - name: "McKinsey / BCG Construction Reports"
-    type: web_search
-    query: "McKinsey BCG construction technology digital transformation AI report 2026"
-    tier: 2
-    tags: [industry-reports, trends, market-sizing]
-    signal_score: 6
-    scan_frequency: monthly
-
-  - name: "UK Net Zero / MEES Updates"
-    type: web_search
-    query: "UK MEES EPC regulations update 2026 retrofit energy efficiency"
-    tier: 2
-    tags: [regulation, retrofit, energy, compliance]
+    query: "chemical industry Turkey UK export paint coatings adhesive resin polymer market 2026"
+    tier: 1
+    tags: [chemicals, coatings, paint, adhesive, polymer, turkey-uk, manufacturing]
     signal_score: 8
-    scan_frequency: weekly
+    scan_frequency: daily
 
-  - name: "David Phillips / BTR Furniture Competitors"
+  # ─── Healthcare (Tier 1 expansion) ────────────────────────
+  - name: "UK Health Tech & Digital Health"
     type: web_search
-    query: "UK BTR furniture supplier contract awarded FF&E 2026"
-    tier: 2
-    tags: [btr, furniture, competitors, market-intel]
+    query: "UK digital health startup AI diagnostics remote monitoring NHS contract awarded 2026"
+    tier: 1
+    tags: [healthcare, digital-health, ai, nhs, medtech, startup]
     signal_score: 8
-    scan_frequency: weekly
+    scan_frequency: daily
 
-  - name: "LinkedIn Construction Tech Discussions"
+  # ─── Energy (Tier 1 expansion) ────────────────────────────
+  - name: "UK & Turkey Energy Transition"
     type: web_search
-    query: "site:linkedin.com construction technology AI UK 2026"
+    query: "UK Turkey energy transition solar battery storage EV charging infrastructure investment 2026"
+    tier: 1
+    tags: [energy, solar, battery, ev-charging, uk-turkey, cleantech, investment]
+    signal_score: 8
+    scan_frequency: daily
+
+  # ─── E-commerce (Tier 1 expansion) ────────────────────────
+  - name: "Cross-Border E-commerce UK-Turkey"
+    type: web_search
+    query: "cross-border ecommerce UK Turkey marketplace Amazon Etsy Trendyol export D2C brand 2026"
+    tier: 1
+    tags: [ecommerce, cross-border, marketplace, amazon, d2c, uk-turkey]
+    signal_score: 8
+    scan_frequency: daily
+
+  # ═══════════════════════════════════════════════════════════
+  # TIER 2 — MEDIUM SIGNAL (scanned weekly) — 34 sources
+  # ═══════════════════════════════════════════════════════════
+
+  # ─── Construction & BIM (weekly) ──────────────────────────
+  - name: "Building Magazine"
+    type: rss
+    url: "https://www.building.co.uk/rss"
     tier: 2
-    tags: [social, construction, ai, networking]
-    signal_score: 4
-    scan_frequency: weekly
-
-  # ═══════════════════════════════════════════════════════════
-  # TIER 3 — DEEP SIGNAL (scanned monthly or on trigger)
-  # ═══════════════════════════════════════════════════════════
-
-  - name: "arXiv — BIM & Construction AI Papers"
-    type: web_search
-    query: "site:arxiv.org BIM scan-to-BIM point cloud digital twin construction AI 2026"
-    tier: 3
-    tags: [research, ai, bim, scan-to-bim, point-cloud, cutting-edge]
+    tags: [uk-construction, news, policy]
     signal_score: 7
-    scan_frequency: monthly
+    scan_frequency: weekly
 
-  - name: "Google Patents — Fire Safety"
+  - name: "Scan-to-BIM UK Projects"
     type: web_search
-    query: "site:patents.google.com fire door intumescent coating AI inspection 2025 2026"
-    tier: 3
-    tags: [patents, fire-doors, innovation]
-    signal_score: 6
-    scan_frequency: monthly
-
-  - name: "MHCLG Building Safety Policy"
-    type: web_search
-    query: "MHCLG building safety golden thread digital record-keeping 2026"
+    query: "UK scan to BIM contract awarded project laser scanning point cloud as-built survey 2026"
     tier: 2
-    tags: [uk-policy, building-safety, regulation, golden-thread, bim]
+    tags: [scan-to-bim, contracts, uk-market, laser-scanning, projects]
     signal_score: 9
     scan_frequency: weekly
 
-  - name: "EU AI Act Implementation"
-    type: web_search
-    query: "EU AI Act implementation high-risk construction safety 2026"
-    tier: 3
-    tags: [regulation, ai, eu, compliance]
-    signal_score: 6
-    scan_frequency: monthly
-
-  - name: "Trade Shows & Exhibitions"
-    type: web_search
-    query: "UK construction trade show exhibition 2026 Ecobuild Futurebuild"
-    tier: 3
-    tags: [events, networking, market-intel]
-    signal_score: 4
-    scan_frequency: monthly
-
-  - name: "Azerbaijan Construction Market"
-    type: web_search
-    query: "Azerbaijan construction hotel development 2026 Baku"
-    tier: 3
-    tags: [azerbaijan, construction, hotels, expansion]
-    signal_score: 5
-    scan_frequency: monthly
-
-  - name: "UAE Hospitality Projects"
-    type: web_search
-    query: "Dubai Abu Dhabi new hotel development FFE furniture supply 2026"
-    tier: 3
-    tags: [uae, hospitality, furniture, luxury]
-    signal_score: 6
-    scan_frequency: monthly
-
-  # ═══════════════════════════════════════════════════════════
-  # BIM / SCAN-TO-BIM / DIGITAL TWIN SOURCES
-  # ═══════════════════════════════════════════════════════════
-
-  # ─── BIM TIER 1 — Daily High-Signal ───────────────────────
-
-  - name: "PBC Today — BIM News"
-    type: rss
-    url: "https://www.pbctoday.co.uk/news/category/digital-construction-news/bim-news/feed/"
-    tier: 1
-    tags: [bim, digital-construction, uk-policy, standards]
-    signal_score: 9
-    scan_frequency: daily
-
-  - name: "AEC Magazine"
-    type: rss
-    url: "https://aecmag.com/feed/"
-    tier: 1
-    tags: [bim, scan-to-bim, 3d-scanning, point-cloud, revit, software]
-    signal_score: 9
-    scan_frequency: daily
-
-  - name: "UK BIM Tenders — Contracts Finder"
-    type: web_search
-    query: "site:contractsfinder.service.gov.uk BIM OR \"building information\" OR \"digital twin\" OR \"scan to BIM\" OR \"point cloud\" OR \"ISO 19650\""
-    tier: 1
-    tags: [bim, tenders, uk-government, scan-to-bim, procurement]
-    signal_score: 10
-    scan_frequency: daily
-
-  - name: "UK BIM Tenders — Find a Tender"
-    type: web_search
-    query: "site:find-tender.service.gov.uk BIM OR \"building information modelling\" OR \"digital twin\" OR \"3D scanning\" OR \"laser scanning\""
-    tier: 1
-    tags: [bim, tenders, uk-government, digital-twin, procurement]
-    signal_score: 10
-    scan_frequency: daily
-
-  - name: "Reddit r/BIM"
+  - name: "r/BIM"
     type: reddit
     subreddit: "BIM"
     sort: "hot"
     limit: 20
-    tier: 1
+    tier: 2
     tags: [bim, community, market-signals, pain-points]
     signal_score: 7
-    scan_frequency: daily
+    scan_frequency: weekly
 
-  - name: "Reddit r/Revit"
+  - name: "r/Revit"
     type: reddit
     subreddit: "Revit"
     sort: "hot"
     limit: 20
-    tier: 1
+    tier: 2
     tags: [revit, bim, community, software, workflows]
     signal_score: 7
-    scan_frequency: daily
-
-  - name: "Building Safety Regulator — Golden Thread"
-    type: web_search
-    query: "Building Safety Regulator golden thread digital record higher-risk buildings enforcement 2026"
-    tier: 1
-    tags: [building-safety, golden-thread, regulation, compliance, bim]
-    signal_score: 10
-    scan_frequency: daily
-
-  - name: "Scan-to-BIM UK Projects & Contracts"
-    type: web_search
-    query: "UK scan to BIM contract awarded project laser scanning point cloud as-built survey 2026"
-    tier: 1
-    tags: [scan-to-bim, contracts, uk-market, laser-scanning, projects]
-    signal_score: 9
-    scan_frequency: daily
-
-  # ─── BIM TIER 2 — Weekly ──────────────────────────────────
+    scan_frequency: weekly
 
   - name: "Autodesk AEC News"
     type: rss
@@ -405,68 +247,226 @@ sources:
     signal_score: 8
     scan_frequency: weekly
 
-  - name: "buildingSMART International"
-    type: web_search
-    query: "buildingSMART IFC openBIM standard update certification 2026"
-    tier: 2
-    tags: [bim, ifc, openbim, standards, buildingsmart]
-    signal_score: 8
-    scan_frequency: weekly
-
-  - name: "Geo Week News / SPAR 3D"
-    type: web_search
-    query: "site:spar3d.com OR site:geoweeknews.com 3D scanning point cloud LiDAR BIM 2026"
-    tier: 2
-    tags: [3d-scanning, lidar, point-cloud, scan-to-bim, hardware]
-    signal_score: 8
-    scan_frequency: weekly
-
-  - name: "nima (ex-UK BIM Alliance)"
-    type: web_search
-    query: "site:wearenima.im OR \"UK BIM Alliance\" OR \"nima\" ISO 19650 AI digital construction 2026"
-    tier: 2
-    tags: [bim, uk-bim-alliance, nima, iso-19650, standards, uk-policy]
-    signal_score: 9
-    scan_frequency: weekly
-
-  - name: "NavVis Blog — Indoor Mapping"
-    type: web_search
-    query: "site:navvis.com blog MLX VLX indoor mobile mapping digital twin 2026"
-    tier: 2
-    tags: [navvis, mobile-mapping, scan-to-bim, digital-twin, hardware]
-    signal_score: 8
-    scan_frequency: weekly
-
-  - name: "Leica / Hexagon Geosystems Blog"
-    type: web_search
-    query: "site:blog.hexagongeosystems.com BLK scanner BIM point cloud 2026"
-    tier: 2
-    tags: [leica, hexagon, scanner, blk, hardware, point-cloud]
-    signal_score: 7
-    scan_frequency: weekly
-
-  - name: "Topcon News — ClearEdge3D / Verity"
-    type: web_search
-    query: "Topcon ClearEdge3D EdgeWise Verity scanner CR-P1 update 2026"
-    tier: 2
-    tags: [topcon, clearedge3d, edgewise, verity, scan-to-bim, software]
-    signal_score: 9
-    scan_frequency: weekly
-
-  - name: "Bentley iTwin Platform"
-    type: web_search
-    query: "Bentley iTwin digital twin platform infrastructure update 2026"
-    tier: 2
-    tags: [bentley, itwin, digital-twin, platform, infrastructure]
-    signal_score: 7
-    scan_frequency: weekly
-
   - name: "UK Scan-to-BIM Competitors"
     type: web_search
     query: "UK scan to BIM services Plowman Craven GlobalCAD Survey2Plan LOD 300 400 pricing 2026"
     tier: 2
     tags: [scan-to-bim, competitors, uk-market, pricing, market-intel]
     signal_score: 9
+    scan_frequency: weekly
+
+  - name: "David Phillips / BTR Furniture Competitors"
+    type: web_search
+    query: "UK BTR furniture supplier contract awarded FF&E 2026"
+    tier: 2
+    tags: [btr, furniture, competitors, market-intel]
+    signal_score: 8
+    scan_frequency: weekly
+
+  - name: "UK Net Zero / MEES / EPC Updates"
+    type: web_search
+    query: "UK MEES EPC regulations update 2026 retrofit energy efficiency"
+    tier: 2
+    tags: [regulation, retrofit, energy, compliance]
+    signal_score: 8
+    scan_frequency: weekly
+
+  - name: "MHCLG Building Safety Policy"
+    type: web_search
+    query: "MHCLG building safety golden thread digital record-keeping 2026"
+    tier: 2
+    tags: [uk-policy, building-safety, regulation, golden-thread, bim]
+    signal_score: 9
+    scan_frequency: weekly
+
+  # ─── Turkish Manufacturing & Trade (moved from T1) ───────
+  - name: "Turkish Furniture & Building Materials Export"
+    type: web_search
+    query: "Turkey furniture building materials export UK growth 2026 MOSDER"
+    tier: 2
+    tags: [turkish-manufacturing, furniture, building-materials, export, cross-border]
+    signal_score: 8
+    scan_frequency: weekly
+
+  - name: "Fire Door & Intumescent Market"
+    type: web_search
+    query: "UK fire door inspection certification intumescent coating FDIS market 2026"
+    tier: 2
+    tags: [fire-doors, compliance, certification, intumescent]
+    signal_score: 8
+    scan_frequency: weekly
+
+  # ─── Fintech & E-commerce ─────────────────────────────────
+  - name: "UK FCA Regulatory Updates"
+    type: web_search
+    query: "FCA UK fintech regulation update consumer duty payments 2026"
+    tier: 2
+    tags: [fintech, regulation, fca, uk, compliance]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "UK E-commerce & DTC Brands"
+    type: web_search
+    query: "UK e-commerce DTC brand Shopify Amazon FBA online retail growth 2026"
+    tier: 2
+    tags: [ecommerce, dtc, shopify, amazon-fba, uk-retail]
+    signal_score: 6
+    scan_frequency: weekly
+
+  - name: "Product Hunt — AI & Automation"
+    type: web_search
+    query: "site:producthunt.com AI agent automation compliance SaaS launched 2026"
+    tier: 2
+    tags: [product-launches, ai, saas]
+    signal_score: 7
+    scan_frequency: weekly
+
+  # ─── Healthcare & Medtech (expanded) ──────────────────────
+  - name: "UK NHS Digital & Procurement"
+    type: web_search
+    query: "NHS digital procurement health tech medical devices AI UK 2026"
+    tier: 2
+    tags: [healthcare, nhs, medtech, procurement, uk]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "UK Pharma & Biotech Market"
+    type: web_search
+    query: "UK pharma biotech startup funding clinical trials MHRA digital health wearable 2026"
+    tier: 2
+    tags: [healthcare, pharma, biotech, mhra, digital-health, wearables]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "Turkey Medical Device & Health Export"
+    type: web_search
+    query: "Turkey medical device health tourism pharmaceutical export UK EU certification 2026"
+    tier: 2
+    tags: [healthcare, medtech, turkey-export, medical-device, cross-border]
+    signal_score: 7
+    scan_frequency: weekly
+
+  # ─── Chemicals & Chemistry ────────────────────────────────
+  - name: "ICIS Chemical Market Intelligence"
+    type: web_search
+    query: "chemical market Europe Turkey polyester epoxy coating adhesive polymer price supply 2026"
+    tier: 2
+    tags: [chemicals, polyester, epoxy, coating, polymer, market-intel, europe-turkey]
+    signal_score: 8
+    scan_frequency: weekly
+
+  - name: "Turkish Chemical & Petrochemical Exports"
+    type: web_search
+    query: "Turkey chemical petrochemical export paint coating adhesive IKMIB growth UK Europe 2026"
+    tier: 2
+    tags: [chemicals, petrochemical, turkey-export, paint, coating, ikmib, cross-border]
+    signal_score: 8
+    scan_frequency: weekly
+
+  # ─── Energy (expanded) ───────────────────────────────────
+  - name: "UK BESS & Grid-Scale Energy Storage"
+    type: web_search
+    query: "UK battery energy storage system BESS grid-scale planning approval operational 2026"
+    tier: 2
+    tags: [energy, bess, battery-storage, grid, uk, infrastructure]
+    signal_score: 8
+    scan_frequency: weekly
+
+  # ─── E-commerce (expanded) ────────────────────────────────
+  - name: "Amazon FBA & Marketplace Arbitrage"
+    type: web_search
+    query: "Amazon FBA UK private label Turkey manufacturer sourcing profitable niche product 2026"
+    tier: 2
+    tags: [ecommerce, amazon-fba, private-label, turkey-sourcing, arbitrage]
+    signal_score: 7
+    scan_frequency: weekly
+
+  # ─── Logistics & Supply Chain ─────────────────────────────
+  - name: "UK-Turkey Logistics & Freight"
+    type: web_search
+    query: "UK Turkey freight logistics customs supply chain corridor shipping 2026"
+    tier: 2
+    tags: [logistics, freight, supply-chain, uk-turkey, customs, cross-border]
+    signal_score: 7
+    scan_frequency: weekly
+
+  # ─── Energy & Cleantech ──────────────────────────────────
+  - name: "UK Energy & Cleantech"
+    type: web_search
+    query: "UK battery storage solar hydrogen cleantech startup funding 2026"
+    tier: 2
+    tags: [energy, cleantech, battery, solar, hydrogen, uk]
+    signal_score: 7
+    scan_frequency: weekly
+
+  # ─── Distressed Assets (all sectors) ─────────────────────
+  - name: "UK Distressed Assets & Administrations"
+    type: web_search
+    query: "UK company administration insolvency distressed assets acquisition 2026"
+    tier: 2
+    tags: [acquisitions, distressed-assets, market-gaps, all-sectors]
+    signal_score: 8
+    scan_frequency: weekly
+
+  # ─── VC & Startup Signals ─────────────────────────────────
+  - name: "Y Combinator Batch Companies"
+    type: web_search
+    query: "Y Combinator latest batch AI compliance proptech fintech construction 2026"
+    tier: 2
+    tags: [vc-signals, startups, competition]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "Innovate UK Funding Calls"
+    type: web_search
+    query: "Innovate UK funding competition digital AI construction cleantech 2026"
+    tier: 2
+    tags: [uk-grants, funding, innovation]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "ConTech VC Funding"
+    type: web_search
+    query: "construction technology startup funding BIM digital twin scan AI Series A B 2026"
+    tier: 2
+    tags: [vc-signals, contech, bim, digital-twin, startups, funding]
+    signal_score: 8
+    scan_frequency: weekly
+
+  # ─── Freelancing & Consulting ─────────────────────────────
+  - name: "Freelancing Platforms Trends"
+    type: web_search
+    query: "Upwork Fiverr Toptal PeoplePerHour trending skills AI automation n8n 2026"
+    tier: 2
+    tags: [freelancing, n8n, automation, consulting, fiverr, toptal]
+    signal_score: 6
+    scan_frequency: weekly
+
+  # ─── Franchise & Licensing ────────────────────────────────
+  - name: "UK Franchise Opportunities"
+    type: web_search
+    query: "UK franchise opportunity master licence new brand expansion 2026"
+    tier: 2
+    tags: [franchise, licensing, uk, business-model]
+    signal_score: 6
+    scan_frequency: weekly
+
+  # ─── Commodities & Materials Pricing ─────────────────────
+  - name: "Construction Materials & Commodities Pricing"
+    type: web_search
+    query: "UK construction materials price index steel timber copper commodity 2026"
+    tier: 2
+    tags: [commodities, materials-pricing, construction, metals, market-signals]
+    signal_score: 7
+    scan_frequency: weekly
+
+  # ─── Digital Construction Standards ──────────────────────
+  - name: "buildingSMART & nima"
+    type: web_search
+    query: "buildingSMART IFC openBIM nima UK BIM Alliance ISO 19650 AI digital 2026"
+    tier: 2
+    tags: [bim, ifc, openbim, standards, buildingsmart, nima, iso-19650]
+    signal_score: 8
     scan_frequency: weekly
 
   - name: "Digital Twin Hub UK"
@@ -477,63 +477,26 @@ sources:
     signal_score: 8
     scan_frequency: weekly
 
-  - name: "NBS Digital Construction Report"
+  - name: "Innovate UK — Digital Construction"
     type: web_search
-    query: "NBS digital construction report BIM adoption UK survey 2026"
-    tier: 2
-    tags: [bim, nbs, uk-adoption, market-data, survey]
-    signal_score: 8
-    scan_frequency: monthly
-
-  - name: "BIM+ Magazine"
-    type: web_search
-    query: "site:bimplus.co.uk BIM digital construction UK 2026"
-    tier: 2
-    tags: [bim, uk-news, digital-construction, thought-leadership]
-    signal_score: 7
-    scan_frequency: weekly
-
-  - name: "NDTP — National Digital Twin Programme"
-    type: web_search
-    query: "National Digital Twin Programme NDTP UK IRIS LISA SALUS demonstrator 2026"
-    tier: 2
-    tags: [digital-twin, ndtp, uk-government, standards, infrastructure]
-    signal_score: 8
-    scan_frequency: monthly
-
-  - name: "ISO 19650 Updates"
-    type: web_search
-    query: "ISO 19650 revision draft update BSI BIM information management 2026"
-    tier: 2
-    tags: [iso-19650, bim, standards, regulation, compliance]
-    signal_score: 9
-    scan_frequency: monthly
-
-  - name: "Innovate UK — Digital Construction Funding"
-    type: web_search
-    query: "Innovate UK funding competition BIM digital twin construction AI scan 2026"
+    query: "Innovate UK funding BIM digital twin construction AI scan export 2026"
     tier: 2
     tags: [funding, innovate-uk, grants, bim, digital-twin, ktp]
     signal_score: 9
     scan_frequency: weekly
 
-  - name: "Connected Places Catapult — DCIP"
+  # ═══════════════════════════════════════════════════════════
+  # TIER 3 — DEEP SIGNAL (scanned monthly) — 26 sources
+  # ═══════════════════════════════════════════════════════════
+
+  # ─── Academic & Research ──────────────────────────────────
+  - name: "arXiv — BIM & Construction AI"
     type: web_search
-    query: "Connected Places Catapult digital construction DCIP BIM export 2026"
-    tier: 2
-    tags: [catapult, dcip, bim, uk-export, digital-construction, funding]
-    signal_score: 8
+    query: "site:arxiv.org BIM scan-to-BIM point cloud digital twin construction AI 2026"
+    tier: 3
+    tags: [research, ai, bim, scan-to-bim, point-cloud, cutting-edge]
+    signal_score: 7
     scan_frequency: monthly
-
-  - name: "ConTech VC Funding — BIM & Digital Twin"
-    type: web_search
-    query: "construction technology startup funding BIM digital twin scan AI Series A B 2026"
-    tier: 2
-    tags: [vc-signals, contech, bim, digital-twin, startups, funding]
-    signal_score: 8
-    scan_frequency: weekly
-
-  # ─── BIM TIER 3 — Monthly Deep Research ───────────────────
 
   - name: "Automation in Construction Journal"
     type: web_search
@@ -551,7 +514,7 @@ sources:
     signal_score: 7
     scan_frequency: monthly
 
-  - name: "UKRI Gateway — BIM Research Projects"
+  - name: "UKRI Gateway — BIM & Digital Research"
     type: web_search
     query: "site:gtr.ukri.org BIM digital twin construction information management"
     tier: 3
@@ -561,34 +524,112 @@ sources:
 
   - name: "UCL Bartlett — Digital Built Environment"
     type: web_search
-    query: "UCL Bartlett construction digital twin BIM research Qiuchen Lu 2026"
+    query: "UCL Bartlett construction digital twin BIM research 2026"
     tier: 3
     tags: [research, ucl, digital-twin, academic, ktp-partner]
     signal_score: 6
     scan_frequency: monthly
 
-  - name: "LOD Specification Updates"
+  # ─── Patents & IP ─────────────────────────────────────────
+  - name: "Google Patents — Fire Safety & Construction AI"
     type: web_search
-    query: "BIMForum LOD specification 2025 2026 level of development LOA reality capture"
+    query: "site:patents.google.com fire door intumescent coating AI inspection construction 2025 2026"
     tier: 3
-    tags: [bim, lod, specification, standards, scan-to-bim]
+    tags: [patents, fire-doors, innovation, ai, construction]
+    signal_score: 6
+    scan_frequency: monthly
+
+  # ─── Vendor & Hardware (consolidated) ─────────────────────
+  - name: "3D Scanning Hardware Vendors"
+    type: web_search
+    query: "NavVis Leica BLK FARO Topcon ClearEdge3D scanner update release 2026"
+    tier: 3
+    tags: [navvis, leica, faro, topcon, hardware, scanner, 3d-scanning, market-intel]
     signal_score: 7
     scan_frequency: monthly
 
-  - name: "FARO / AMETEK Scanner Updates"
+  - name: "Digital Twin Platforms"
     type: web_search
-    query: "FARO AMETEK scanner Focus Orbis update acquisition integration 2026"
+    query: "Bentley iTwin Matterport digital twin platform update enterprise integration 2026"
     tier: 3
-    tags: [faro, ametek, scanner, hardware, acquisition, market-intel]
+    tags: [bentley, matterport, digital-twin, platform, itwin, e57]
     signal_score: 6
     scan_frequency: monthly
 
-  - name: "Matterport Digital Twin Platform"
+  - name: "Point Cloud Open Source Tools"
     type: web_search
-    query: "Matterport digital twin E57 BIM integration enterprise API update 2026"
+    query: "CloudCompare OR Open3D release update point cloud processing 2026"
     tier: 3
-    tags: [matterport, digital-twin, e57, platform, scan-to-bim]
+    tags: [open-source, point-cloud, software, tools, scan-to-bim]
+    signal_score: 5
+    scan_frequency: monthly
+
+  # ─── Standards & Policy ───────────────────────────────────
+  - name: "ISO 19650 & LOD Specification Updates"
+    type: web_search
+    query: "ISO 19650 revision LOD specification BIMForum level of development update 2026"
+    tier: 3
+    tags: [iso-19650, bim, lod, standards, regulation, specification]
+    signal_score: 8
+    scan_frequency: monthly
+
+  - name: "EU AI Act — Construction & Safety"
+    type: web_search
+    query: "EU AI Act implementation high-risk construction safety 2026"
+    tier: 3
+    tags: [regulation, ai, eu, compliance]
     signal_score: 6
+    scan_frequency: monthly
+
+  - name: "NBS Digital Construction Report"
+    type: web_search
+    query: "NBS digital construction report BIM adoption UK survey 2026"
+    tier: 3
+    tags: [bim, nbs, uk-adoption, market-data, survey]
+    signal_score: 8
+    scan_frequency: monthly
+
+  - name: "NDTP — National Digital Twin Programme"
+    type: web_search
+    query: "National Digital Twin Programme NDTP UK IRIS LISA SALUS demonstrator 2026"
+    tier: 3
+    tags: [digital-twin, ndtp, uk-government, standards, infrastructure]
+    signal_score: 8
+    scan_frequency: monthly
+
+  - name: "Connected Places Catapult — DCIP"
+    type: web_search
+    query: "Connected Places Catapult digital construction DCIP BIM export 2026"
+    tier: 3
+    tags: [catapult, dcip, bim, uk-export, digital-construction, funding]
+    signal_score: 8
+    scan_frequency: monthly
+
+  # ─── Infrastructure Tenders ───────────────────────────────
+  - name: "Network Rail & Highways BIM Tenders"
+    type: web_search
+    query: "Network Rail OR \"National Highways\" BIM digital twin scan survey tender contract 2026"
+    tier: 3
+    tags: [infrastructure, rail, highways, bim, tenders, digital-twin]
+    signal_score: 8
+    scan_frequency: monthly
+
+  # ─── Industry Reports ─────────────────────────────────────
+  - name: "McKinsey / BCG Construction & AI Reports"
+    type: web_search
+    query: "McKinsey BCG construction technology AI digital transformation report 2026"
+    tier: 3
+    tags: [industry-reports, trends, market-sizing]
+    signal_score: 6
+    scan_frequency: monthly
+
+  # ─── Events ───────────────────────────────────────────────
+  - name: "Trade Shows & Exhibitions"
+    type: web_search
+    query: "UK construction trade show exhibition 2026 Ecobuild Futurebuild Digital Construction Week"
+    tier: 3
+    tags: [events, networking, market-intel]
+    signal_score: 4
     scan_frequency: monthly
 
   - name: "Laser Scanning Forum"
@@ -599,18 +640,69 @@ sources:
     signal_score: 7
     scan_frequency: monthly
 
-  - name: "Network Rail & Highways BIM Tenders"
+  # ─── Geographic Markets ───────────────────────────────────
+  - name: "UAE / Gulf Business Opportunities"
     type: web_search
-    query: "Network Rail OR \"National Highways\" BIM digital twin scan survey tender contract 2026"
+    query: "Dubai Abu Dhabi new hotel development FFE furniture construction AI technology 2026"
     tier: 3
-    tags: [infrastructure, rail, highways, bim, tenders, digital-twin]
-    signal_score: 8
+    tags: [uae, hospitality, furniture, luxury, gulf, construction]
+    signal_score: 6
     scan_frequency: monthly
 
-  - name: "CloudCompare & Open3D Releases"
+  - name: "Azerbaijan Construction & Development"
     type: web_search
-    query: "CloudCompare OR Open3D release update point cloud processing 2026"
+    query: "Azerbaijan construction hotel development Baku 2026"
     tier: 3
-    tags: [open-source, point-cloud, software, tools, scan-to-bim]
+    tags: [azerbaijan, construction, hotels, expansion]
     signal_score: 5
+    scan_frequency: monthly
+
+  - name: "Turkish Startup Ecosystem"
+    type: web_search
+    query: "Turkey startup ecosystem funding AI fintech SaaS 2026 Getir Trendyol"
+    tier: 3
+    tags: [turkish-startups, funding, ai, fintech, localization]
+    signal_score: 6
+    scan_frequency: monthly
+
+  # ─── New Sector Deep Dives ────────────────────────────────
+  - name: "UK NHS & Medtech Procurement Deep Dive"
+    type: web_search
+    query: "NHS procurement framework medical device health tech AI NICE approval 2026"
+    tier: 3
+    tags: [healthcare, nhs, medtech, procurement, ai, regulation]
+    signal_score: 7
+    scan_frequency: monthly
+
+  - name: "UK Companies House — New Registrations"
+    type: web_search
+    query: "UK Companies House new company registration tech proptech fintech healthtech SIC 2026"
+    tier: 3
+    tags: [uk-companies, market-signals, competition, all-sectors]
+    signal_score: 5
+    scan_frequency: monthly
+
+  - name: "UK Energy Storage & Hydrogen"
+    type: web_search
+    query: "UK battery energy storage hydrogen electrolyser funding project 2026"
+    tier: 3
+    tags: [energy, battery-storage, hydrogen, cleantech, uk, funding]
+    signal_score: 7
+    scan_frequency: monthly
+
+  # ─── Chemicals Deep Dive ──────────────────────────────────
+  - name: "Chemical Industry Innovation & Green Chemistry"
+    type: web_search
+    query: "green chemistry sustainable chemicals bio-based polymer coating innovation EU REACH regulation 2026"
+    tier: 3
+    tags: [chemicals, green-chemistry, sustainable, bio-based, reach, regulation, innovation]
+    signal_score: 7
+    scan_frequency: monthly
+
+  - name: "Turkey Chemical Industry & IKMIB Reports"
+    type: web_search
+    query: "Turkey chemical industry IKMIB export strategy paint adhesive raw materials capacity investment 2026"
+    tier: 3
+    tags: [chemicals, turkey, ikmib, export, paint, adhesive, investment, market-report]
+    signal_score: 7
     scan_frequency: monthly

@@ -1,0 +1,23 @@
+# OpportunityScout v2 - Intelligence Mesh Cron Schedule
+# Updated: 2026-04-07
+
+# --- DAILY (06:00 UTC) ---
+# Tier 1 scan + 4-strategy serendipity + capability explore + deadlines + digest
+0 6 * * * /opt/opportunity-scout/run.sh -m src.cli scan --tier 1 >> /opt/opportunity-scout/logs/daily.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli serendipity --mode daily >> /opt/opportunity-scout/logs/daily.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli explore --count 2 >> /opt/opportunity-scout/logs/daily.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli deadlines >> /opt/opportunity-scout/logs/daily.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli digest >> /opt/opportunity-scout/logs/daily.log 2>&1
+
+# --- WEEKLY - Monday 03:00 UTC ---
+# Full cycle: tier2 scan + evolve + generate + deep serendipity + localize + crosspoll + competitors + weekly report
+0 3 * * 1 /opt/opportunity-scout/run.sh -m src.cli scan --tier 2 >> /opt/opportunity-scout/logs/weekly.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli evolve >> /opt/opportunity-scout/logs/weekly.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli generate --count 3 >> /opt/opportunity-scout/logs/weekly.log 2>&1 && sleep 120 && /opt/opportunity-scout/run.sh -m src.cli serendipity --mode deep >> /opt/opportunity-scout/logs/weekly.log 2>&1 && sleep 120 && /opt/opportunity-scout/run.sh -m src.cli localize --count 5 >> /opt/opportunity-scout/logs/weekly.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli crosspoll >> /opt/opportunity-scout/logs/weekly.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli competitors >> /opt/opportunity-scout/logs/weekly.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli weekly >> /opt/opportunity-scout/logs/weekly.log 2>&1
+
+# --- MID-WEEK - Thursday 06:00 UTC ---
+# Extra exploration cycle (capability explorer focuses on least-explored clusters)
+0 6 * * 4 /opt/opportunity-scout/run.sh -m src.cli explore --count 3 >> /opt/opportunity-scout/logs/midweek.log 2>&1 && /opt/opportunity-scout/run.sh -m src.cli serendipity --mode daily >> /opt/opportunity-scout/logs/midweek.log 2>&1
+
+# --- DB BACKUP - Daily 02:00 UTC ---
+0 2 * * * cp /opt/opportunity-scout/data/opportunity_scout.db /opt/opportunity-scout/data/backup_$(date +\%Y\%m\%d).db
+
+# --- CLEANUP - 1st of month 03:00 UTC ---
+0 3 1 * * find /opt/opportunity-scout/data/ -name "backup_*.db" -mtime +30 -delete
+
+# --- LOG ROTATION - Weekly Sunday 00:00 UTC ---
+0 0 * * 0 for f in /opt/opportunity-scout/logs/*.log; do [ -f "$f" ] && mv "$f" "$f.$(date +\%Y\%m\%d)" && gzip "$f.$(date +\%Y\%m\%d)"; done && find /opt/opportunity-scout/logs/ -name "*.gz" -mtime +30 -delete

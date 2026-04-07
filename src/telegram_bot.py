@@ -37,7 +37,7 @@ class TelegramNotifier:
         tg_config = config.get('telegram', {})
         self.bot_token = tg_config.get('bot_token') or os.environ.get('TELEGRAM_BOT_TOKEN', '')
         self.chat_id = tg_config.get('chat_id') or os.environ.get('TELEGRAM_CHAT_ID', '')
-        self.alert_threshold = tg_config.get('instant_alert_threshold', 150)
+        self.alert_threshold = tg_config.get('instant_alert_threshold', 120)
 
         if HAS_TELEGRAM and self.bot_token:
             self.bot = Bot(token=self.bot_token)
@@ -51,33 +51,38 @@ class TelegramNotifier:
     async def send_fire_alert(self, opportunity: dict):
         """Send instant alert for a FIRE-tier opportunity."""
         scores = opportunity.get('scores', {})
-        top_dims = self._get_top_dimensions(scores, n=3)
+        top_dims = self._escape_md(self._get_top_dimensions(scores, n=3))
+        score_str = self._escape_md(str(opportunity.get('weighted_total', 0)))
+        risks = self._escape_md(', '.join(opportunity.get('risks', ['N/A'])))
+        opp_id = opportunity.get('id', 'N/A')
 
         message = (
             f"🔥 *FIRE OPPORTUNITY DETECTED*\n\n"
             f"*{self._escape_md(opportunity.get('title', 'Unknown'))}*\n\n"
             f"_{self._escape_md(opportunity.get('one_liner', ''))}_\n\n"
-            f"📊 *Score: {opportunity.get('weighted_total', 0)}/185*\n"
+            f"📊 *Score: {score_str}/155*\n"
             f"🏆 Top: {top_dims}\n\n"
             f"⏰ *Why NOW:*\n{self._escape_md(opportunity.get('why_now', 'N/A'))}\n\n"
             f"🎯 *First Move:*\n{self._escape_md(opportunity.get('first_move', 'N/A'))}\n\n"
             f"💰 *Revenue Path:*\n{self._escape_md(opportunity.get('revenue_path', 'N/A'))}\n\n"
-            f"⚠️ *Risks:* {', '.join(opportunity.get('risks', ['N/A']))}\n\n"
-            f"🔗 ID: `{opportunity.get('id', 'N/A')}`\n"
-            f"📎 /deep\\_dive\\_{opportunity.get('id', '')}"
+            f"⚠️ *Risks:* {risks}\n\n"
+            f"{'⏰ *Action By:* ' + self._escape_md(opportunity.get('action_by', '')) + chr(10) + chr(10) if opportunity.get('action_by') else ''}"
+            f"🔗 ID: `{self._escape_md(str(opp_id))}`\n"
+            f"📎 /deep\\_dive\\_{self._escape_md(str(opp_id))}"
         )
 
         await self._send(message, parse_mode="MarkdownV2")
 
     async def send_high_alert(self, opportunity: dict):
         """Send alert for a HIGH-tier opportunity."""
+        score_str = self._escape_md(str(opportunity.get('weighted_total', 0)))
         message = (
             f"⭐ *HIGH OPPORTUNITY*\n\n"
             f"*{self._escape_md(opportunity.get('title', 'Unknown'))}*\n"
-            f"Score: {opportunity.get('weighted_total', 0)}/185\n\n"
+            f"Score: {score_str}/155\n\n"
             f"_{self._escape_md(opportunity.get('one_liner', ''))}_\n\n"
             f"🎯 First Move: {self._escape_md(opportunity.get('first_move', 'N/A'))}\n\n"
-            f"🔗 `{opportunity.get('id', 'N/A')}`"
+            f"🔗 `{self._escape_md(str(opportunity.get('id', 'N/A')))}`"
         )
         await self._send(message, parse_mode="MarkdownV2")
 
@@ -96,9 +101,10 @@ class TelegramNotifier:
                 tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
                     opp.get('tier', ''), "📝"
                 )
+                score_str = self._escape_md(str(opp.get('weighted_total', 0)))
                 parts.append(
                     f"{i}\\. {tier_emoji} *{self._escape_md(opp.get('title', 'Unknown'))}*\n"
-                    f"   Score: {opp.get('weighted_total', 0)} \\| "
+                    f"   Score: {score_str} \\| "
                     f"{self._escape_md(opp.get('sector', 'N/A'))}\n"
                     f"   → _{self._escape_md(opp.get('one_liner', ''))}_"
                 )
@@ -138,10 +144,10 @@ class TelegramNotifier:
         stats = report_data.get('stats', {})
         parts.append(
             f"📊 *STATS*\n"
-            f"• New opportunities: {stats.get('new_opportunities', 0)}\n"
-            f"• Fire alerts: {stats.get('fire_count', 0)}\n"
-            f"• Sources scanned: {stats.get('sources_scanned', 0)}\n"
-            f"• Avg score: {stats.get('avg_score', 0)}"
+            f"• New opportunities: {self._escape_md(str(stats.get('new_opportunities', 0)))}\n"
+            f"• Fire alerts: {self._escape_md(str(stats.get('fire_count', 0)))}\n"
+            f"• Sources scanned: {self._escape_md(str(stats.get('sources_scanned', 0)))}\n"
+            f"• Avg score: {self._escape_md(str(stats.get('avg_score', 0)))}"
         )
 
         # Top opportunities this week
@@ -150,9 +156,9 @@ class TelegramNotifier:
             parts.append("\n🏆 *TOP OPPORTUNITIES THIS WEEK*")
             for opp in opps[:10]:
                 parts.append(
-                    f"• {opp.get('tier', '?')} "
+                    f"• {self._escape_md(str(opp.get('tier', '?')))} "
                     f"{self._escape_md(opp.get('title', 'Unknown'))} "
-                    f"— Score: {opp.get('weighted_total', 0)}"
+                    f"— Score: {self._escape_md(str(opp.get('weighted_total', 0)))}"
                 )
 
         # Evolution log
@@ -208,31 +214,75 @@ class TelegramNotifier:
         app = Application.builder().token(self.bot_token).build()
 
         async def cmd_scout(update: Update, context):
-            await update.message.reply_text("🔍 Starting scan cycle... This may take a few minutes.")
-            result = await scout_engine.run_scan_cycle()
-            await update.message.reply_text(
-                f"✅ Scan complete!\n"
-                f"• Sources scanned: {result.get('sources_scanned', 0)}\n"
-                f"• Opportunities found: {result.get('opportunities_found', 0)}\n"
-                f"• Signals detected: {result.get('signals_found', 0)}\n"
-                f"• Fire alerts: {result.get('fire_alerts', 0)}"
-            )
+            args = context.args
+            mode = args[0].lower() if args else '1'
+
+            if mode == 'all':
+                await update.message.reply_text(
+                    "🔍 Starting FULL scan (all 3 tiers)... 15-20 minutes.\n"
+                    "📧 Comprehensive report will be emailed when done."
+                )
+                result = await scout_engine.run_full_scan(tiers=[1, 2, 3])
+                combined = result.get('combined_stats', {})
+                duration = result.get('total_duration', 0)
+                minutes = int(duration // 60)
+                await update.message.reply_text(
+                    f"✅ Full scan complete (Tier 1+2+3)!\n"
+                    f"• Total opportunities: {combined.get('opportunities_found', 0)}\n"
+                    f"• FIRE: {combined.get('fire_alerts', 0)} | HIGH: {combined.get('high_alerts', 0)}\n"
+                    f"• Duration: {minutes}m\n"
+                    f"📧 Detailed report sent to email!"
+                )
+            elif mode in ('1', '2', '3'):
+                await update.message.reply_text(
+                    f"🔍 Starting Tier {mode} scan... This may take a few minutes."
+                )
+                result = await scout_engine.run_scan_cycle(tier=int(mode))
+                await update.message.reply_text(
+                    f"✅ Tier {mode} scan complete!\n"
+                    f"• Sources scanned: {result.get('sources_scanned', 0)}\n"
+                    f"• Opportunities found: {result.get('opportunities_found', 0)}\n"
+                    f"• Signals detected: {result.get('signals_found', 0)}\n"
+                    f"• Fire alerts: {result.get('fire_alerts', 0)}"
+                )
+            else:
+                await update.message.reply_text(
+                    "Usage: /scout [1|2|3|all]\nDefault: Tier 1"
+                )
+                return
 
         async def cmd_portfolio(update: Update, context):
             opps = scout_engine.kb.get_top_opportunities(limit=10)
             if not opps:
                 await update.message.reply_text("📭 No opportunities in portfolio yet.")
                 return
-            lines = ["📊 *TOP 10 OPPORTUNITIES*\n"]
+
             for i, opp in enumerate(opps, 1):
                 tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
                     opp.get('tier', ''), "📝"
                 )
-                lines.append(
-                    f"{i}. {tier_emoji} {opp.get('title', '?')} — "
-                    f"Score: {opp.get('weighted_total', 0)}"
+                score = opp.get('weighted_total', 0)
+                title = opp.get('title', '?')
+                one_liner = opp.get('one_liner', '')
+                sector = opp.get('sector', 'N/A')
+                first_move = opp.get('first_move', 'N/A')
+                revenue = opp.get('revenue_path', 'N/A')
+                why_now = opp.get('why_now', '')
+                risks = json.loads(opp.get('risks_json', '[]')) if opp.get('risks_json') else []
+                risk_str = ', '.join(risks[:3]) if risks else 'N/A'
+
+                why_line = f"⏰ Why NOW: {why_now}\n\n" if why_now else ""
+                msg = (
+                    f"{tier_emoji} #{i} — {title}\n"
+                    f"📊 Score: {score}/155 | Sector: {sector}\n\n"
+                    f"💡 {one_liner}\n\n"
+                    f"{why_line}"
+                    f"🎯 First Move: {first_move}\n\n"
+                    f"💰 Revenue: {revenue}\n\n"
+                    f"⚠️ Risks: {risk_str}"
                 )
-            await update.message.reply_text("\n".join(lines))
+                await update.message.reply_text(msg)
+                await asyncio.sleep(0.5)  # avoid rate limiting
 
         async def cmd_stats(update: Update, context):
             stats = scout_engine.kb.get_stats()
@@ -248,18 +298,102 @@ class TelegramNotifier:
             )
             await update.message.reply_text(msg)
 
+        async def cmd_brain(update: Update, context):
+            """Search Open Brain or show brain stats."""
+            args = context.args
+            if not args:
+                # No args = show brain stats
+                stats = await scout_engine.brain.get_brain_stats()
+                if not stats:
+                    await update.message.reply_text("❌ Open Brain not connected.")
+                    return
+                if isinstance(stats, str):
+                    await update.message.reply_text(f"🧠 Open Brain Stats:\n\n{stats[:3000]}")
+                else:
+                    await update.message.reply_text(f"🧠 Open Brain Stats:\n\n{json.dumps(stats, indent=2, ensure_ascii=False)[:3000]}")
+                return
+
+            query = ' '.join(args)
+
+            # Check for path filter: /brain intel:query or /brain projects:query
+            path_filter = None
+            if ':' in query and not query.startswith('http'):
+                parts = query.split(':', 1)
+                path_shortcuts = {
+                    'intel': 'intelligence/',
+                    'projects': 'projects/',
+                    'context': 'context/',
+                    'daily': 'daily/',
+                    'skills': 'skills/',
+                    'resources': 'resources/',
+                }
+                if parts[0].lower() in path_shortcuts:
+                    path_filter = path_shortcuts[parts[0].lower()]
+                    query = parts[1].strip()
+
+            await update.message.reply_text(f"🧠 Searching Brain: \"{query}\"...")
+            results = await scout_engine.brain.search_brain(query, path=path_filter, limit=5)
+
+            if not results:
+                await update.message.reply_text("🧠 No results found in Brain.")
+                return
+
+            if isinstance(results, str):
+                await update.message.reply_text(f"🧠 Brain Results:\n\n{results[:3500]}")
+                return
+
+            if isinstance(results, list):
+                for i, item in enumerate(results[:5], 1):
+                    if isinstance(item, dict):
+                        content = item.get('content', str(item))[:500]
+                        path = item.get('path', '')
+                        score = item.get('similarity', item.get('score', ''))
+                        header = f"🧠 #{i}"
+                        if path:
+                            header += f" [{path}]"
+                        if score:
+                            header += f" ({score})"
+                        await update.message.reply_text(f"{header}\n\n{content}")
+                    else:
+                        await update.message.reply_text(f"🧠 #{i}\n\n{str(item)[:500]}")
+                    await asyncio.sleep(0.3)
+            else:
+                await update.message.reply_text(f"🧠 Brain Results:\n\n{str(results)[:3500]}")
+
+        async def cmd_digest(update: Update, context):
+            await update.message.reply_text("📊 Generating daily digest...")
+            await scout_engine.generate_daily_digest()
+            await update.message.reply_text("✅ Daily digest sent!")
+
         async def cmd_help(update: Update, context):
             msg = (
                 "🤖 *OpportunityScout Commands*\n\n"
-                "/scout — Run a full scan cycle\n"
-                "/portfolio — View top opportunities\n"
-                "/generate — Generate novel business models\n"
-                "/generate [focus] — Focus area (e.g. /generate scan-to-bim)\n"
+                "🔍 *Scanning*\n"
+                "/scout — Tier 1 scan (default)\n"
+                "/scout 2 — Specific tier scan\n"
+                "/scout all — Full scan (Tier 1+2+3)\n\n"
+                "🎲 *Discovery*\n"
                 "/serendipity — Broad cross-sector discovery\n"
                 "/serendipity deep — Deep Opus-powered analysis\n"
                 "/localize — Samwer lens: copy proven models\n"
                 "/localize [sector] — Focus (e.g. /localize proptech)\n"
-                "/stats — View system statistics\n"
+                "/generate — Generate novel business models\n"
+                "/generate [focus] — Focus area (e.g. /generate scan-to-bim)\n"
+                "/explore — Capability-first exploration (auto)\n"
+                "/explore [cap] — Explore specific capability\n"
+                "/explore [cap] [industry] — Explore intersection\n"
+                "/crosspoll — Cross-sector connections\n"
+                "/deadlines — Regulatory deadline tracker\n"
+                "/competitors — Competitive intelligence\n"
+                "/competitors [OPP-ID] — Analyze specific opportunity\n\n"
+                "🧠 *Open Brain*\n"
+                "/brain — Brain stats overview\n"
+                "/brain [query] — Search Brain semantically\n"
+                "  Path filters: intel: projects: context: daily: skills: resources:\n"
+                "  e.g. /brain intel:construction AI\n\n"
+                "📊 *Reports*\n"
+                "/portfolio — View top 10 opportunities\n"
+                "/stats — System statistics\n"
                 "/digest — Generate today's digest\n"
                 "/help — Show this message"
             )
@@ -321,12 +455,84 @@ class TelegramNotifier:
                 f"{stored} localization opportunities found."
             )
 
+        async def cmd_explore(update: Update, context):
+            args = context.args
+            capability = None
+            industry = None
+            # Parse args: /explore or /explore it_infrastructure or /explore it_infrastructure managed_soc
+            if args:
+                capability = args[0]
+                if len(args) > 1:
+                    industry = args[1]
+
+            msg = "🔭 Running capability exploration"
+            if capability:
+                msg += f" ({capability}"
+                if industry:
+                    msg += f" × {industry}"
+                msg += ")"
+            else:
+                msg += " (auto-selecting least explored areas)"
+            msg += "... 3-5 min."
+            await update.message.reply_text(msg)
+
+            result = await scout_engine.run_exploration(
+                capability=capability, industry=industry, count=3
+            )
+            total = result.get('total_found', 0)
+            explorations = result.get('explorations', [])
+            await update.message.reply_text(
+                f"🔭 Done! {len(explorations)} explorations, "
+                f"{total} opportunities found."
+            )
+
         app.add_handler(CommandHandler("scout", cmd_scout))
         app.add_handler(CommandHandler("portfolio", cmd_portfolio))
         app.add_handler(CommandHandler("stats", cmd_stats))
         app.add_handler(CommandHandler("generate", cmd_generate))
         app.add_handler(CommandHandler("serendipity", cmd_serendipity))
         app.add_handler(CommandHandler("localize", cmd_localize))
+        app.add_handler(CommandHandler("explore", cmd_explore))
+
+        async def cmd_deadlines(update: Update, context):
+            await update.message.reply_text("📅 Checking regulatory deadlines...")
+            result = await scout_engine.check_deadlines()
+            report = scout_engine.temporal.get_deadline_report()
+            # Split if too long
+            if len(report) > 4000:
+                report = report[:4000] + "\n..."
+            await update.message.reply_text(report)
+
+        async def cmd_competitors(update: Update, context):
+            opp_id = context.args[0] if context.args else None
+            msg = "🏢 Running competitive scan"
+            if opp_id:
+                msg += f" for {opp_id}"
+            msg += "... 3-5 min."
+            await update.message.reply_text(msg)
+            result = await scout_engine.run_competitive_scan(opportunity_id=opp_id)
+            await update.message.reply_text(
+                f"🏢 Done! {result.get('new_competitors_identified', 0)} new competitors, "
+                f"{result.get('signals_found', 0)} signals found."
+            )
+
+        async def cmd_crosspoll(update: Update, context):
+            await update.message.reply_text(
+                "🔗 Running cross-pollination analysis... 5-8 min."
+            )
+            result = await scout_engine.run_cross_pollination()
+            connections = result.get('connections', [])
+            hybrids = result.get('hybrid_opportunities', [])
+            await update.message.reply_text(
+                f"🔗 Done! {len(connections)} connections found, "
+                f"{len(hybrids)} hybrid opportunities generated."
+            )
+
+        app.add_handler(CommandHandler("deadlines", cmd_deadlines))
+        app.add_handler(CommandHandler("competitors", cmd_competitors))
+        app.add_handler(CommandHandler("crosspoll", cmd_crosspoll))
+        app.add_handler(CommandHandler("brain", cmd_brain))
+        app.add_handler(CommandHandler("digest", cmd_digest))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
 

@@ -27,10 +27,17 @@ from .web_scanner import WebScanner, ContentItem
 from .opportunity_scorer import OpportunityScorer
 from .knowledge_base import KnowledgeBase
 from .telegram_bot import TelegramNotifier
+from .email_reporter import EmailReporter
+from .openbrain_client import OpenBrainClient
 from .self_improver import SelfImprover
 from .model_generator import BusinessModelGenerator
 from .serendipity_engine import SerendipityEngine
 from .localization_scanner import LocalizationScanner
+from .capability_explorer import CapabilityExplorer
+from .temporal_intelligence import TemporalIntelligence
+from .competitive_monitor import CompetitiveMonitor
+from .cross_pollinator import CrossPollinator
+from .event_bus import EventBus
 
 logger = logging.getLogger("scout.engine")
 
@@ -52,12 +59,43 @@ class ScoutEngine:
             self.config.get('database', {}).get('path', './data/opportunity_scout.db')
         )
         self.telegram = TelegramNotifier(self.config)
-        self.improver = SelfImprover(self.config, self.kb)
+        self.email = EmailReporter(self.config)
+        self.brain = OpenBrainClient(self.config)
+        self.improver = SelfImprover(self.config, self.kb)  # event_bus wired after init
         self.generator = BusinessModelGenerator(self.config, self.kb)
         self.serendipity = SerendipityEngine(self.config, self.kb)
         self.localizer = LocalizationScanner(self.config, self.kb)
+        self.explorer = CapabilityExplorer(self.config, self.kb)
 
-        logger.info("🚀 OpportunityScout engine initialized")
+        # Initialize Intelligence Mesh event bus
+        self.event_bus = EventBus(self.kb)
+        self.improver.event_bus = self.event_bus  # Wire event bus into self-improver
+
+        # Phase 5 modules (wired to event bus)
+        self.temporal = TemporalIntelligence(self.config, self.kb, self.event_bus)
+        self.competitors = CompetitiveMonitor(self.config, self.kb, self.event_bus)
+        self.crosspoll = CrossPollinator(self.config, self.kb, self.event_bus)
+
+        self._wire_event_handlers()
+
+        logger.info("🚀 OpportunityScout engine initialized (Intelligence Mesh active)")
+
+    def _wire_event_handlers(self):
+        """Wire up event bus subscriptions between modules."""
+        # For now, register logging handlers for all event types.
+        # As modules are upgraded to multi-strategy engines (Phase 2+),
+        # they'll register their own handlers.
+        event_types = [
+            'signal_detected', 'opportunity_scored', 'blind_spot_found',
+            'trend_cluster', 'operator_feedback', 'deadline_approaching',
+            'negative_evidence', 'cross_pollination'
+        ]
+        for et in event_types:
+            self.event_bus.subscribe(et, self._log_event)
+
+    def _log_event(self, data: dict):
+        """Default event handler — logs all events for debugging."""
+        logger.debug(f"📡 Event received: {data.get('event_type', '?')}")
 
     # ─── Core Scan Cycle ────────────────────────────────────
 
@@ -80,7 +118,8 @@ class ScoutEngine:
             "signals_found": 0,
             "fire_alerts": 0,
             "high_alerts": 0,
-            "scan_duration": 0
+            "scan_duration": 0,
+            "_opportunities": []  # internal: for scan report
         }
 
         logger.info(f"{'='*60}")
@@ -100,15 +139,21 @@ class ScoutEngine:
         real_items = [i for i in all_items if not i.title.startswith("[SEARCH_TASK]")]
         search_tasks = [i for i in all_items if i.title.startswith("[SEARCH_TASK]")]
 
+        # PHASE 1.5: PULL OPERATOR CONTEXT FROM BRAIN
+        brain_context = await self.brain.get_operator_context()
+        scoring_context = self.brain.build_scoring_context(brain_context)
+        if scoring_context:
+            logger.info("🧠 Brain context loaded — scoring will use live operator profile")
+
         # PHASE 2: ANALYZE — Real content batch analysis
         logger.info("🧠 Phase 2: Analyzing content with Claude...")
-        
+
         all_opportunities = []
         all_signals = []
         all_cross_pollinations = []
 
         if real_items:
-            result = self.scorer.analyze_batch(real_items, batch_size=5)
+            result = self.scorer.analyze_batch(real_items, batch_size=5, extra_context=scoring_context)
             all_opportunities.extend(result.get("opportunities", []))
             all_signals.extend(result.get("signals", []))
             all_cross_pollinations.extend(result.get("cross_pollinations", []))
@@ -123,6 +168,13 @@ class ScoutEngine:
                 if query:
                     logger.info(f"   🔎 Web search: {query[:80]}...")
                     result = self.scorer.analyze_with_web_search(query, source_config)
+
+                    # Assign IDs, weighted totals and tiers (web search doesn't do this)
+                    for opp in result.get("opportunities", []):
+                        # ID is assigned by knowledge_base.save_opportunity() — no need to set here
+                        opp['weighted_total'] = self.scorer._calculate_weighted_total(opp.get('scores', {}))
+                        opp['tier'] = self.scorer._determine_tier(opp['weighted_total'])
+
                     all_opportunities.extend(result.get("opportunities", []))
                     all_signals.extend(result.get("signals", []))
 
@@ -143,19 +195,49 @@ class ScoutEngine:
         logger.info("💾 Phase 3: Storing and delivering results...")
 
         for opp in all_opportunities:
-            # Check for duplicates
-            if not self.kb.is_duplicate(opp.get('title', ''), opp.get('source', '')):
-                opp_id = self.kb.save_opportunity(opp)
-                stats["opportunities_found"] += 1
+            # Check for duplicates — Layer 1: SQLite fuzzy title match
+            if self.kb.is_duplicate(opp.get('title', ''), opp.get('source', ''),
+                                      sector=opp.get('sector', ''), tags=opp.get('tags', [])):
+                logger.info(f"   🔄 Skip (DB duplicate): {opp.get('title', '?')[:60]}")
+                continue
+
+            # Check for duplicates — Layer 2: Open Brain semantic similarity
+            if opp.get('tier') in ('FIRE', 'HIGH'):
+                is_dup = await self.brain.is_semantic_duplicate(
+                    opp.get('title', ''), opp.get('one_liner', '')
+                )
+                if is_dup:
+                    logger.info(f"   🔄 Skip (semantic duplicate): {opp.get('title', '?')[:60]}")
+                    continue
+
+            opp_id = self.kb.save_opportunity(opp)
+            stats["opportunities_found"] += 1
+            stats["_opportunities"].append(opp)
+
+            # Publish to Intelligence Mesh event bus
+            self.event_bus.publish('opportunity_scored', {
+                'id': opp.get('id'),
+                'title': opp.get('title'),
+                'tier': opp.get('tier'),
+                'sector': opp.get('sector'),
+                'weighted_total': opp.get('weighted_total'),
+                'tags': opp.get('tags', [])
+            }, source_module='web_scanner')
+
+            # Push to Open Brain (only FIRE and HIGH — avoid noise)
+            if opp.get('tier') in ('FIRE', 'HIGH'):
+                await self.brain.push_opportunity(opp)
 
                 # Send alerts based on tier
                 tier_label = opp.get('tier', 'LOW')
                 if tier_label == 'FIRE':
                     await self.telegram.send_fire_alert(opp)
+                    await self.email.send_fire_alert(opp)
                     stats["fire_alerts"] += 1
                     logger.info(f"   🔥 FIRE: {opp.get('title')} ({opp.get('weighted_total')})")
                 elif tier_label == 'HIGH':
                     await self.telegram.send_high_alert(opp)
+                    await self.email.send_high_alert(opp)
                     stats["high_alerts"] += 1
                     logger.info(f"   ⭐ HIGH: {opp.get('title')} ({opp.get('weighted_total')})")
                 else:
@@ -163,7 +245,16 @@ class ScoutEngine:
 
         for signal in all_signals:
             self.kb.save_signal(signal)
+            await self.brain.push_signal(signal)
             stats["signals_found"] += 1
+
+            # Publish signal to Intelligence Mesh
+            self.event_bus.publish('signal_detected', {
+                'type': signal.get('type', 'market'),
+                'summary': signal.get('summary', ''),
+                'tags': signal.get('tags', []),
+                'source': signal.get('source', '')
+            }, source_module='web_scanner')
 
         for cp in all_cross_pollinations:
             self.kb.save_cross_pollination(
@@ -198,6 +289,47 @@ class ScoutEngine:
 
         return stats
 
+    async def run_full_scan(self, tiers: list = None) -> dict:
+        """
+        Run scan across multiple tiers and send a comprehensive report email.
+        """
+        if tiers is None:
+            tiers = [1, 2, 3]
+
+        start_time = time.time()
+        all_opportunities = []
+        tier_stats = {}
+
+        for t in tiers:
+            result = await self.run_scan_cycle(tier=t)
+            tier_stats[f"Tier {t}"] = result
+            all_opportunities.extend(result.get('_opportunities', []))
+
+        total_duration = time.time() - start_time
+
+        scan_results = {
+            "tiers_scanned": tiers,
+            "tier_stats": tier_stats,
+            "total_duration": total_duration,
+            "brain_synced": len(all_opportunities),
+            "combined_stats": {
+                "sources_scanned": sum(t.get('sources_scanned', 0) for t in tier_stats.values()),
+                "opportunities_found": sum(t.get('opportunities_found', 0) for t in tier_stats.values()),
+                "fire_alerts": sum(t.get('fire_alerts', 0) for t in tier_stats.values()),
+                "high_alerts": sum(t.get('high_alerts', 0) for t in tier_stats.values()),
+            }
+        }
+
+        # Send comprehensive scan report email
+        await self.email.send_scan_report(scan_results, all_opportunities)
+
+        logger.info(
+            f"📧 Scan report email sent: {len(tiers)} tiers, "
+            f"{len(all_opportunities)} opportunities, {total_duration:.0f}s"
+        )
+
+        return scan_results
+
     # ─── Daily Digest ───────────────────────────────────────
 
     async def generate_daily_digest(self):
@@ -217,6 +349,7 @@ class ScoutEngine:
         signals = []  # TODO: Add signal aggregation from KB
 
         await self.telegram.send_daily_digest(top_opps, signals)
+        await self.email.send_daily_digest(top_opps, signals)
         logger.info(f"📊 Daily digest sent: {len(top_opps)} opportunities")
 
     # ─── Weekly Report ──────────────────────────────────────
@@ -249,7 +382,9 @@ class ScoutEngine:
         }
 
         await self.telegram.send_weekly_report(report_data)
-        logger.info("📋 Weekly report sent")
+        await self.email.send_weekly_report(report_data)
+        await self.brain.push_weekly_summary(report_data)
+        logger.info("📋 Weekly report sent (Telegram + Email + Brain)")
 
     # ─── Deep Dive ──────────────────────────────────────────
 
@@ -301,7 +436,7 @@ class ScoutEngine:
             msg = (
                 f"📊 IDEA SCORED\n\n"
                 f"Title: {opp.get('title', 'N/A')}\n"
-                f"Score: {opp.get('weighted_total', 0)}/185 ({opp.get('tier', 'N/A')})\n\n"
+                f"Score: {opp.get('weighted_total', 0)}/155 ({opp.get('tier', 'N/A')})\n\n"
                 f"Dimensions:\n"
             )
             for dim, score in top_dims:
@@ -353,12 +488,33 @@ class ScoutEngine:
         if focus_area:
             summary += f"Focus area: {focus_area}\n"
 
+        # Show lens breakdown
+        lens_results = gen_ctx.get('lens_results', {})
+        if lens_results:
+            summary += "\n📐 Lens breakdown:\n"
+            for lens_name, lr in lens_results.items():
+                if isinstance(lr, dict) and 'error' not in lr:
+                    summary += f"  {lens_name}: {lr.get('raw_count', 0)} raw models\n"
+
         top_model = max(models, key=lambda m: m.get('weighted_total', 0))
         summary += (
             f"\nBest model: {top_model.get('title', 'N/A')} "
-            f"({top_model.get('weighted_total', 0)}/185 — {top_model.get('tier', '?')})"
+            f"({top_model.get('weighted_total', 0)}/155 — {top_model.get('tier', '?')})"
         )
         await self.telegram.send_text(summary)
+
+        # Send activity report email
+        if models:
+            await self.email.send_activity_report(
+                activity_type="generate",
+                opportunities=models,
+                extra_info={
+                    "signals_analyzed": gen_ctx.get('signals_analyzed', 0),
+                    "trends_analyzed": gen_ctx.get('trends_analyzed', 0),
+                    "blind_spots_found": gen_ctx.get('blind_spots_found', 0),
+                    "focus_area": focus_area or "All areas",
+                }
+            )
 
         logger.info(f"💡 Generated {len(models)} business models")
         return result
@@ -381,7 +537,7 @@ class ScoutEngine:
             f"💡 GENERATED BUSINESS MODEL\n"
             f"{'='*35}\n\n"
             f"{tier_emoji} {model.get('title', 'Untitled')}\n"
-            f"Score: {model.get('weighted_total', 0)}/185\n"
+            f"Score: {model.get('weighted_total', 0)}/155\n"
             f"Confidence: {confidence_emoji} {gen.get('confidence', '?')}\n\n"
             f"{model.get('one_liner', '')}\n\n"
             f"ORIGIN:\n{gen.get('origin_story', 'N/A')[:200]}\n\n"
@@ -442,6 +598,18 @@ class ScoutEngine:
                 )
             await self.telegram.send_text(summary)
 
+        # Send activity report email
+        if opportunities:
+            await self.email.send_activity_report(
+                activity_type="serendipity",
+                opportunities=opportunities,
+                extra_info={
+                    "raw_found": result.get('raw_found', 0),
+                    "passed_filter": result.get('passed_filter', 0),
+                    "scan_type": "Daily Light Scan",
+                }
+            )
+
         logger.info(
             f"🎲 Serendipity daily: {result.get('passed_filter', 0)} "
             f"opportunities passed filter"
@@ -485,6 +653,18 @@ class ScoutEngine:
                     summary += f"\n   💡 {discovery[:100]}"
             await self.telegram.send_text(summary)
 
+        # Send activity report email
+        if opportunities:
+            await self.email.send_activity_report(
+                activity_type="serendipity",
+                opportunities=opportunities,
+                extra_info={
+                    "raw_found": result.get('raw_found', 0),
+                    "passed_filter": result.get('passed_filter', 0),
+                    "scan_type": "Weekly Deep Scan (Opus)",
+                }
+            )
+
         logger.info(
             f"🎲 Serendipity weekly: {result.get('passed_filter', 0)} "
             f"opportunities passed filter"
@@ -513,13 +693,23 @@ class ScoutEngine:
 
         if opportunities:
             summary = (
-                f"🌍 LOCALIZATION SCAN COMPLETE\n"
-                f"(Samwer/Rocket Internet lens)\n\n"
+                f"🌍 LOCALIZATION 5-STRATEGY SCAN COMPLETE\n\n"
                 f"Models analyzed: {result.get('models_analyzed', 0)}\n"
                 f"Opportunities found: {result.get('opportunities_stored', 0)}\n"
             )
             if focus_sector:
                 summary += f"Focus: {focus_sector}\n"
+
+            # Show strategy breakdown
+            strategy_results = result.get('strategy_results', {})
+            if strategy_results:
+                summary += "\n📊 Strategy breakdown:\n"
+                for sname, sr in strategy_results.items():
+                    if isinstance(sr, dict) and 'error' not in sr:
+                        summary += (
+                            f"  {sname}: {sr.get('stored', 0)} opps, "
+                            f"best={sr.get('best', 0)}\n"
+                        )
 
             for opp in opportunities[:5]:
                 tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
@@ -541,10 +731,188 @@ class ScoutEngine:
 
             await self.telegram.send_text(summary)
 
+        # Send activity report email
+        if opportunities:
+            await self.email.send_activity_report(
+                activity_type="localize",
+                opportunities=opportunities,
+                extra_info={
+                    "models_analyzed": result.get('models_analyzed', 0),
+                    "opportunities_stored": result.get('opportunities_stored', 0),
+                    "focus_sector": focus_sector or "All sectors",
+                }
+            )
+
         logger.info(
             f"🌍 Localization scan: {result.get('opportunities_stored', 0)} "
             f"opportunities found"
         )
+        return result
+
+    # ─── Capability Explorer ──────────────────────────────────
+
+    async def run_exploration(self, capability: str = None,
+                               industry: str = None,
+                               count: int = 3) -> dict:
+        """
+        Run capability-first exploration.
+        Starts from founder's skills, systematically explores adjacent industries.
+        """
+        logger.info("🔭 Running capability exploration...")
+
+        if capability or industry:
+            # Explore a specific intersection
+            result = self.explorer.explore(capability=capability, industry=industry)
+            results = [result] if result else []
+        else:
+            # Auto-select least explored capabilities
+            explore_result = self.explorer.explore_multiple(count=count)
+            results = explore_result.get('explorations', []) if isinstance(explore_result, dict) else explore_result
+
+        opportunities = []
+        for r in results:
+            for opp in r.get('opportunities', []):
+                opportunities.append(opp)
+                tier = opp.get('tier', 'LOW')
+                if tier == 'FIRE':
+                    await self.telegram.send_fire_alert(opp)
+                elif tier == 'HIGH':
+                    await self.telegram.send_high_alert(opp)
+
+                # Publish to event bus
+                self.event_bus.publish('opportunity_scored', {
+                    'id': opp.get('id'),
+                    'title': opp.get('title'),
+                    'tier': opp.get('tier'),
+                    'sector': opp.get('sector'),
+                    'weighted_total': opp.get('weighted_total'),
+                    'tags': opp.get('tags', []),
+                    'discovery_strategy': 'capability_explorer'
+                }, source_module='capability_explorer')
+
+            # Publish negative evidence if nothing found
+            if r.get('negative_evidence'):
+                self.event_bus.publish('negative_evidence', {
+                    'capability': r.get('capability'),
+                    'industry': r.get('industry'),
+                    'message': r.get('negative_evidence')
+                }, source_module='capability_explorer')
+
+        if opportunities:
+            summary = (
+                f"🔭 CAPABILITY EXPLORATION COMPLETE\n\n"
+                f"Explorations run: {len(results)}\n"
+                f"Opportunities found: {len(opportunities)}\n"
+            )
+            for r in results:
+                cap = r.get('capability', '?')
+                ind = r.get('industry', '?')
+                opp_count = len(r.get('opportunities', []))
+                best = max((o.get('weighted_total', 0) for o in r.get('opportunities', [])), default=0)
+                neg = "⚠️ negative evidence" if r.get('negative_evidence') else ""
+                summary += f"\n  {cap} × {ind}: {opp_count} opps (best={best}) {neg}"
+
+            await self.telegram.send_text(summary)
+
+        # Send email report
+        if opportunities:
+            await self.email.send_activity_report(
+                activity_type="explore",
+                opportunities=opportunities,
+                extra_info={
+                    "explorations_run": len(results),
+                    "capability": capability or "auto-selected",
+                    "industry": industry or "auto-selected",
+                }
+            )
+
+        logger.info(
+            f"🔭 Capability exploration: {len(results)} explorations, "
+            f"{len(opportunities)} opportunities"
+        )
+        return {
+            'explorations': results,
+            'opportunities': opportunities,
+            'total_found': len(opportunities)
+        }
+
+    # ─── Temporal Intelligence ─────────────────────────────
+
+    async def check_deadlines(self) -> dict:
+        """Check regulatory deadlines and publish alerts."""
+        logger.info("📅 Checking regulatory deadlines...")
+        alerts = self.temporal.check_deadlines()
+
+        if alerts:
+            report = self.temporal.get_deadline_report()
+            await self.telegram.send_text(report[:4000])
+
+        return {'alerts': alerts, 'count': len(alerts)}
+
+    # ─── Competitive Monitor ──────────────────────────────
+
+    async def run_competitive_scan(self, opportunity_id: str = None) -> dict:
+        """Run competitive intelligence scan."""
+        logger.info("🏢 Running competitive scan...")
+
+        result = self.competitors.scan_for_opportunity(opportunity_id)
+
+        if result.get('signals_found', 0) > 0:
+            report = self.competitors.get_competitor_report()
+            await self.telegram.send_text(report[:4000])
+        elif result.get('new_competitors_identified', 0) > 0:
+            await self.telegram.send_text(
+                f"🏢 Competitive scan complete:\n"
+                f"New competitors identified: {result['new_competitors_identified']}\n"
+                f"Competitors monitored: {result['competitors_monitored']}\n"
+                f"Signals found: {result['signals_found']}"
+            )
+
+        return result
+
+    # ─── Cross-Pollinator ─────────────────────────────────
+
+    async def run_cross_pollination(self) -> dict:
+        """Run cross-sector connection analysis."""
+        logger.info("🔗 Running cross-pollination cycle...")
+
+        result = self.crosspoll.run_cross_pollination()
+        connections = result.get('connections', [])
+        hybrids = result.get('hybrid_opportunities', [])
+
+        # Send alerts for hybrid opportunities
+        for opp in hybrids:
+            tier = opp.get('tier', 'LOW')
+            if tier == 'FIRE':
+                await self.telegram.send_fire_alert(opp)
+            elif tier == 'HIGH':
+                await self.telegram.send_high_alert(opp)
+
+        if connections:
+            summary = (
+                f"🔗 CROSS-POLLINATION COMPLETE\n\n"
+                f"Connections found: {len(connections)}\n"
+                f"Hybrid opportunities: {len(hybrids)}\n"
+            )
+            for conn in connections[:5]:
+                sectors = ', '.join(conn.get('sectors', []))
+                summary += (
+                    f"\n• [{conn.get('connection_type', '?')}] "
+                    f"{sectors}: {conn.get('insight', '')[:100]}"
+                )
+            await self.telegram.send_text(summary)
+
+        # Email report
+        if hybrids:
+            await self.email.send_activity_report(
+                activity_type="crosspoll",
+                opportunities=hybrids,
+                extra_info={
+                    "connections_found": len(connections),
+                    "hybrid_opportunities": len(hybrids),
+                }
+            )
+
         return result
 
     # ─── Evolution ──────────────────────────────────────────

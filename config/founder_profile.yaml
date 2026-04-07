@@ -125,47 +125,61 @@ founder:
     - "Requires deep expertise founder doesn't have (e.g., biotech, fintech regulation)"
 
   # ─── Sweet Spots (instant high scores) ─────────────────────
+  # BALANCED across ALL capability clusters — not just construction
   sweet_spots:
-    - pattern: "AI + UK regulation compliance"
-      min_score_boost: 15
-      reason: "Direct intersection of AI skills and construction domain knowledge"
-    
-    - pattern: "Turkish production + UK market"
+    # ── Construction (3 consolidated — was 8) ──
+    - pattern: "Building Safety Act / golden thread / fire door compliance"
+      min_score_boost: 14
+      reason: "Regulatory deadline + AI + deep construction domain knowledge + factory capability"
+
+    - pattern: "BIM / Scan-to-BIM / digital twin / point cloud"
       min_score_boost: 12
-      reason: "Core cross-border arbitrage advantage"
-    
-    - pattern: "n8n/automation consulting or products"
+      reason: "Civil engineering background + AI dev skills + 30-50% cost undercut via Turkish talent"
+
+    - pattern: "BTR furniture / FF&E supply chain"
+      min_score_boost: 10
+      reason: "Proven factory capability, existing market research, David Phillips gap"
+
+    # ── Cross-border & Manufacturing (3) ──
+    - pattern: "Turkish production + UK/UAE market arbitrage"
+      min_score_boost: 12
+      reason: "Core cross-border arbitrage advantage — applies to furniture, coatings, industrial products, any physical good"
+
+    - pattern: "Coil coating / specialty paint / surface finishing products"
+      min_score_boost: 12
+      reason: "Rare factory capability — intumescent, industrial, architectural coatings. 2-year investment. Serves construction AND automotive, appliance, chemicals markets"
+
+    - pattern: "Cross-border e-commerce / marketplace (TR↔UK/UAE/US)"
+      min_score_boost: 10
+      reason: "Entities in 4 countries + import/export logistics expertise + factory for private label"
+
+    # ── IT Infrastructure (2) ──
+    - pattern: "IT infrastructure managed services / cybersecurity"
+      min_score_boost: 10
+      reason: "20+ years deep expertise: Cisco, VMware, Palo Alto, VDI, Veeam. Underexploited skill"
+
+    - pattern: "VDI / remote desktop / virtual workspace solutions"
+      min_score_boost: 10
+      reason: "Horizon VDI expertise + AWS cloud skills + Terraform IaC = modern remote work infrastructure"
+
+    # ── AI & Software (3) ──
+    - pattern: "n8n automation / workflow consulting or products"
       min_score_boost: 10
       reason: "Immediate skill monetization, already on Upwork pipeline"
-    
-    - pattern: "Fire door / intumescent innovation"
+
+    - pattern: "AI-powered regulatory compliance tools (any sector)"
       min_score_boost: 12
-      reason: "Deep domain expertise + factory capability + regulatory tailwind"
-    
-    - pattern: "BTR furniture supply chain"
+      reason: "AI dev skills + regulatory knowledge. Works for GDPR, NIS2, Building Safety Act, REACH chemicals, Cyber Essentials"
+
+    - pattern: "AI agents / SaaS automation tools for SMEs"
       min_score_boost: 10
-      reason: "Proven capability, existing market research, David Phillips gap"
-    
-    - pattern: "AI agents for construction workflows"
+      reason: "Python + Claude API + n8n + AWS = build and sell AI agents to businesses in any sector"
+
+    # ── Emerging Sectors (2) ──
+    - pattern: "Chemical / polymer / adhesive trade (TR exports)"
+      min_score_boost: 10
+      reason: "Factory has coating capability + Turkish chemical export network (IKMIB) + UK market access"
+
+    - pattern: "AI + manufacturing optimization / Industry 4.0"
       min_score_boost: 12
-      reason: "Combines AI dev skills with construction domain expertise"
-    
-    - pattern: "Building Safety Act compliance tools"
-      min_score_boost: 15
-      reason: "Regulatory deadline + AI + construction knowledge = perfect storm"
-
-    - pattern: "Scan-to-BIM / point cloud / 3D scanning services"
-      min_score_boost: 14
-      reason: "Topcon CR-P1 M evaluated, ClearEdge3D pipeline designed, Revit learning active, BuildThread AI concept"
-
-    - pattern: "Digital twin / golden thread compliance"
-      min_score_boost: 14
-      reason: "BuildThread AI core concept, BSA golden thread mandate, deep regulatory knowledge"
-
-    - pattern: "BIM consulting / ISO 19650 implementation"
-      min_score_boost: 10
-      reason: "Civil engineering background + construction domain + AI automation of BIM workflows"
-
-    - pattern: "AI-automated point cloud to Revit modeling"
-      min_score_boost: 15
-      reason: "Intersection of AI dev skills + Scan-to-BIM domain + 30-50% cost undercut potential"
+      reason: "20+ years factory operations + AI/Python skills = optimize manufacturing with AI for SME manufacturers"

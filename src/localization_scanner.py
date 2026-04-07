@@ -1,30 +1,27 @@
 """
-OpportunityScout — Localization Scanner (Samwer/Rocket Internet Lens)
+OpportunityScout — Localization Scanner v2 (5-Strategy Engine)
 
-The "copy what works" module. Inspired by the Samwer brothers' Rocket Internet
-playbook: systematically scan for proven, funded, growing digital business
-models globally — then check if they exist in the operator's target markets
-(UK and Turkey). If not → localization opportunity.
+The "copy what works" module, now powered by 5 parallel search strategies:
 
-This is fundamentally different thinking from the other modules:
-  - Scanner: "What opportunities exist right now?"
-  - Generator: "What new business should I invent?"
-  - Serendipity: "What unexpected thing could I do?"
-  - Localization: "What PROVEN model can I COPY into my markets?"
+  Strategy 1: MULTI-STAGE PIPELINE — Funded startups → gap check → adaptation
+  Strategy 2: REVERSE SAMWER — UK pain points → global solutions → localization
+  Strategy 3: ARBITRAGE SCANNER — UK vs Turkey price gaps → business models
+  Strategy 4: FAILURE ANALYSIS — Failed UK startups → extract learnings → retry
+  Strategy 5: CAPABILITY×MARKET MATRIX — 5 skills × trending sectors → gaps
 
-The risk profile is radically lower because the model is already validated
-somewhere — the only question is whether it can be adapted.
-
-Runs weekly (Opus for deep analysis + web search).
-Cost: ~$2-3 per cycle.
+All 5 run every cycle. Performance tracked per strategy.
+Cost: ~$4-5 per cycle.
 """
 
 import json
 import logging
 import os
+import time
+import uuid
 from datetime import datetime
 from pathlib import Path
 from anthropic import Anthropic
+from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.localization")
 
@@ -34,9 +31,14 @@ SYSTEM_PROMPT_PATH = Path("./SYSTEM_PROMPT.md")
 
 class LocalizationScanner:
     """
-    Scans for proven business models globally and evaluates their
-    localization potential for UK and Turkey markets.
+    5-Strategy Localization Engine.
+    Finds proven models globally and evaluates localization potential.
     """
+
+    STRATEGY_NAMES = [
+        'multi_stage', 'reverse_samwer', 'arbitrage',
+        'failure_analysis', 'capability_matrix'
+    ]
 
     def __init__(self, config: dict, knowledge_base):
         self.config = config
@@ -51,275 +53,448 @@ class LocalizationScanner:
         self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
 
-    # ─── Public API ─────────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════
+    # PUBLIC API
+    # ═══════════════════════════════════════════════════════════
 
     def scan(self, focus_sector: str = None, count: int = 5) -> dict:
         """
-        Run a full localization scan cycle.
-
-        Phase 1: DISCOVER — Find successful, funded, growing models globally
-        Phase 2: GAP CHECK — For each model, check UK and Turkey market presence
-        Phase 3: FEASIBILITY — Score localization feasibility + founder fit
-        Phase 4: ADAPT — Design specific adaptation plan for top candidates
-
-        Args:
-            focus_sector: Optional sector focus (e.g., "proptech", "healthtech")
-            count: Number of localization opportunities to find (default 5)
-
-        Returns:
-            dict with "opportunities" list, each containing the original model,
-            gap analysis, adaptation plan, and standard scoring.
+        Run all 5 localization strategies and merge results.
         """
-        logger.info(f"🌍 Localization scan starting"
+        logger.info(f"🌍 5-Strategy Localization scan starting"
                     f"{f' (focus: {focus_sector})' if focus_sector else ''}...")
 
-        # Build context: what we already know, to avoid repeats
         known_titles = self._get_known_titles()
-        previous_localizations = self._get_previous_localizations()
+        previous = self._get_previous_localizations()
 
-        # Single comprehensive Opus call with multi-phase prompt
-        prompt = self._build_scan_prompt(
-            known_titles, previous_localizations, focus_sector, count
-        )
+        all_opportunities = []
+        strategy_results = {}
 
-        try:
-            response = self.client.messages.create(
-                model=self.model,
-                max_tokens=8192,
-                system=self._system_prompt,
-                tools=[{
-                    "type": "web_search_20250305",
-                    "name": "web_search"
-                }],
-                messages=[{"role": "user", "content": prompt}]
-            )
+        strategies = [
+            ('multi_stage', self._strategy_multi_stage),
+            ('reverse_samwer', self._strategy_reverse_samwer),
+            ('arbitrage', self._strategy_arbitrage),
+            ('failure_analysis', self._strategy_failure_analysis),
+            ('capability_matrix', self._strategy_capability_matrix),
+        ]
 
-            text = self._extract_text(response)
-            results = self._parse_response(text)
-            opportunities = results.get('opportunities', [])
+        for strategy_name, strategy_fn in strategies:
+            start_time = time.time()
+            logger.info(f"🌍 Running strategy: {strategy_name}")
 
-            # Calculate scores and store
-            stored = []
-            for opp in opportunities:
-                opp = self._finalize_opportunity(opp)
-                if not self.kb.is_duplicate(opp.get('title', ''), 'localization_scanner'):
-                    self.kb.save_opportunity(opp)
-                    stored.append(opp)
+            try:
+                opps = strategy_fn(
+                    known_titles=known_titles,
+                    previous=previous,
+                    focus_sector=focus_sector
+                )
 
-            logger.info(f"🌍 Localization scan complete: {len(stored)} opportunities")
+                duration = time.time() - start_time
 
-            return {
-                "mode": "localization_scan",
-                "focus_sector": focus_sector,
-                "models_analyzed": len(opportunities),
-                "opportunities_stored": len(stored),
-                "opportunities": stored,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                # Finalize and store
+                stored = []
+                for opp in opps:
+                    opp['_strategy'] = strategy_name
+                    opp = self._finalize_opportunity(opp)
+                    if not self.kb.is_duplicate(
+                        opp.get('title', ''), 'localization_scanner',
+                        sector=opp.get('sector'), tags=opp.get('tags', [])
+                    ):
+                        self.kb.save_opportunity(opp)
+                        stored.append(opp)
 
-        except Exception as e:
-            logger.error(f"Localization scan failed: {e}")
-            return {
-                "mode": "localization_scan",
-                "models_analyzed": 0,
-                "opportunities_stored": 0,
-                "opportunities": [],
-                "error": str(e)
-            }
+                # Track performance
+                fire_count = len([o for o in stored if o.get('tier') == 'FIRE'])
+                high_count = len([o for o in stored if o.get('tier') == 'HIGH'])
+                scores = [o.get('weighted_total', 0) for o in stored]
 
-    # ─── Prompt Builder ─────────────────────────────────────
+                self.kb.log_strategy_performance(
+                    engine='localization',
+                    strategy_name=strategy_name,
+                    opportunities_found=len(stored),
+                    avg_score=round(sum(scores) / len(scores), 1) if scores else 0,
+                    best_score=max(scores) if scores else 0,
+                    fire_count=fire_count,
+                    high_count=high_count,
+                    duration_seconds=round(duration, 1)
+                )
 
-    def _build_scan_prompt(self, known_titles: list,
-                           previous_localizations: list,
-                           focus_sector: str = None,
-                           count: int = 5) -> str:
-        """Build the comprehensive multi-phase localization prompt."""
+                strategy_results[strategy_name] = {
+                    'raw': len(opps),
+                    'stored': len(stored),
+                    'fire': fire_count,
+                    'high': high_count,
+                    'best': max(scores) if scores else 0,
+                    'avg': round(sum(scores) / len(scores), 1) if scores else 0,
+                    'duration': round(duration, 1)
+                }
 
-        avoid_section = ""
-        if known_titles:
-            avoid_section += (
-                "\n\nALREADY IN PORTFOLIO — do not repeat:\n"
-                + "\n".join(f"- {t}" for t in known_titles[:30])
-            )
-        if previous_localizations:
-            avoid_section += (
-                "\n\nPREVIOUSLY ANALYZED LOCALIZATIONS — find NEW ones:\n"
-                + "\n".join(f"- {t}" for t in previous_localizations[:20])
-            )
+                all_opportunities.extend(stored)
+                known_titles.extend([o.get('title', '') for o in stored])
 
-        focus_instruction = ""
-        if focus_sector:
-            focus_instruction = (
-                f"\n\nFOCUS CONSTRAINT: Prioritize models in or adjacent to: "
-                f"{focus_sector}. But if you find an exceptional opportunity "
-                f"outside this sector, include it.\n"
-            )
+                logger.info(
+                    f"🌍 {strategy_name}: {len(opps)} raw → {len(stored)} stored "
+                    f"(🔥{fire_count} ⭐{high_count}) in {duration:.0f}s"
+                )
 
-        return f"""You are the Localization Scanner of OpportunityScout, implementing the Samwer brothers / Rocket Internet playbook with AI-era upgrades.
+            except Exception as e:
+                logger.error(f"🌍 Strategy {strategy_name} failed: {e}")
+                strategy_results[strategy_name] = {'error': str(e)}
 
-YOUR MISSION: Find {count} proven, funded, growing digital business models operating successfully OUTSIDE the UK and Turkey — that do NOT yet have a strong equivalent in the UK or Turkey. For each, design a specific localization strategy.
+        # Summary
+        total = len(all_opportunities)
+        logger.info(f"{'='*50}")
+        logger.info(f"🌍 5-STRATEGY LOCALIZATION COMPLETE")
+        logger.info(f"   Total: {total} opportunities")
+        for name, r in strategy_results.items():
+            if isinstance(r, dict) and 'error' not in r:
+                logger.info(f"   {name}: {r['stored']} opps, best={r['best']}")
+        logger.info(f"{'='*50}")
 
-This is NOT about invention. This is about COPYING WHAT WORKS. The Samwer brothers built a $8B+ empire by systematically:
-1. Finding successful US startups (Groupon, eBay, Zappos, Airbnb)
-2. Cloning them for European/emerging markets
-3. Executing faster than the original could expand
-4. Either dominating the local market or selling to the original
+        return {
+            "mode": "localization_5strategy",
+            "focus_sector": focus_sector,
+            "models_analyzed": sum(r.get('raw', 0) for r in strategy_results.values() if isinstance(r, dict)),
+            "opportunities_stored": total,
+            "opportunities": all_opportunities,
+            "strategy_results": strategy_results,
+            "timestamp": datetime.utcnow().isoformat()
+        }
 
-In 2026, AI makes this 10x more powerful because:
-- One person can now build what previously required a 20-person team
-- AI agents can handle customer service, content, operations
-- Cross-border arbitrage is amplified (Turkish dev costs, UK prices)
-- Regulatory differences create natural moats (UK-specific compliance, Turkish market rules)
+    # ═══════════════════════════════════════════════════════════
+    # STRATEGY 1: MULTI-STAGE PIPELINE
+    # ═══════════════════════════════════════════════════════════
+
+    def _strategy_multi_stage(self, **kwargs) -> list:
+        """Kademeli Startup Araştırması — structured funded model discovery."""
+        focus = kwargs.get('focus_sector', '')
+        focus_text = f"\nFocus on: {focus}" if focus else ""
+
+        prompt = f"""Sen OpportunityScout'un Multi-Stage Pipeline stratejisisin.
+
+GÖREVİN: Fonlanmış, büyüyen startup'ları sistematik olarak bul, UK/TR boşluğunu kontrol et.
+{focus_text}
+
+ADIM A — KEŞFET: 2025-2026'da en hızlı büyüyen B2B kategorileri neler?
+Web'de ara: "fastest growing B2B startups 2025", "YC batch 2025 top companies", "Series A funding 2025 2026"
+En az 5 farklı kategori bul.
+
+ADIM B — ŞİRKETLERİ BUL: Her kategori için top 3-5 şirket:
+- Şirket adı, ülke, ne yapar, funding, revenue sinyalleri
+
+ADIM C — BOŞLUK KONTROLÜ: Her şirket için:
+- "[company] UK competitor alternative" ara
+- "[company's service] Turkey" ara
+- UK'de var mı? TR'de var mı? Kalite nasıl?
+
+ADIM D — ADAPTASYON: Boşluk olan şirketler için founder fit + adaptasyon planı.
 
 OPERATOR PROFILE:
 {self._founder_profile}
 
-TARGET MARKETS (in priority order):
-1. United Kingdom — high purchasing power, English-speaking, operator relocating there
-2. Turkey — operator's home market, deep network, low-cost operations base
-3. Cross-border UK↔Turkey — unique arbitrage position
-{focus_instruction}{avoid_section}
+BİLİNEN BAŞLIKLAR (tekrarlama):
+{chr(10).join(f'- {t}' for t in kwargs.get('known_titles', [])[:15])}
 
-EXECUTE THIS 4-PHASE RESEARCH PROCESS:
+{self._get_localization_json_template()}
 
-═══ PHASE 1: DISCOVER ═══
-Search the web extensively for:
-- Recent Y Combinator batches (W2025, S2025, W2026) — find companies with traction
-- Product Hunt top launches in the last 6 months with high upvotes
-- TechCrunch / Crunchbase recent funding rounds ($1M-50M, Series A/B)
-- Successful startups in: US, India, Brazil, Southeast Asia, Australia, Middle East, China
-- Focus on models that are PROVEN (real revenue, real users) not just funded
-- Look across ALL sectors: fintech, healthtech, edtech, proptech, logistics, food, HR, legal, insurance, marketplaces, SaaS tools, creator economy, climate tech, agritech
+En az 8 web araması yap. Sadece GERÇEK, doğrulanabilir şirketler."""
 
-For each discovered model, note:
-- Company name and country
-- What they do (one sentence)
-- Funding raised and revenue signals
-- Why it works (what problem, what solution)
-- Year founded and growth trajectory
+        return self._execute_and_parse(prompt)
 
-═══ PHASE 2: GAP CHECK ═══
-For each promising model, search specifically:
-- "Is there a UK equivalent of [company name]?"
-- "[Company's service] UK competitor alternative"
-- "[Company's service] Turkey alternative Turkish"
-- Check if the original company already operates in UK/Turkey
+    # ═══════════════════════════════════════════════════════════
+    # STRATEGY 2: REVERSE SAMWER (Problem-First)
+    # ═══════════════════════════════════════════════════════════
 
-Classify each as:
-- NO EQUIVALENT: Nothing similar exists in UK/Turkey → strongest opportunity
-- WEAK EQUIVALENT: Something exists but is poorly executed, underfunded, or incomplete → still opportunity
-- STRONG EQUIVALENT: A well-funded, established player already exists → skip
-- ORIGINAL PRESENT: The original company already operates in UK/Turkey → skip
+    def _strategy_reverse_samwer(self, **kwargs) -> list:
+        """UK pain points → who solved it elsewhere → localize."""
+        prompt = f"""Sen OpportunityScout'un Reverse Samwer stratejisisin.
 
-Only proceed with NO EQUIVALENT and WEAK EQUIVALENT models.
+GÖREVİN: UK SME'lerin en büyük acı noktalarını bul, başka ülkelerde kim çözmüş bak.
 
-═══ PHASE 3: LOCALIZATION FEASIBILITY ═══
-For each surviving model, evaluate:
+ADIM A — ACI NOKTALARI: Web'de ara:
+- "UK small business biggest challenges 2025"
+- "UK SME most expensive services"
+- "what UK businesses complain about most"
+- Reddit UK business forums, Trustpilot complaints
+En az 10 farklı acı noktası bul.
 
-A) REGULATORY FIT: Does UK/Turkey regulation help or hinder?
-   - Could regulation create a MOAT? (e.g., UK data protection, Turkish banking rules)
-   - Any licensing/compliance barriers to entry?
+ADIM B — GLOBAL ÇÖZÜMLER: Her acı noktası için:
+- "best [problem] solution startup"
+- "[problem] solved India startup"
+- "[problem] solved US company"
+Kim çözmüş? Nasıl? Ne kadar fiyat alıyor?
 
-B) CULTURAL FIT: Does the model translate?
-   - Consumer behavior differences
-   - Payment preferences
-   - Language requirements
-   - Trust/brand dynamics
+ADIM C — LOKALİZASYON: UK'ye getirebilir miyiz?
+- Turkish cost + UK price ile adapte edilebilir mi?
+- Founder'ın yetenekleriyle eşleşiyor mu?
 
-C) FOUNDER FIT: Can THIS specific operator execute this?
-   - Which of their skills, assets, or networks apply?
-   - Cross-border advantage applicable?
-   - AI skills relevant for cost reduction?
+OPERATOR PROFILE:
+{self._founder_profile}
 
-D) ECONOMICS: Does the math work?
-   - UK/Turkey pricing potential vs original market
-   - Can it be built cheaper with AI + Turkish dev costs?
-   - Market size in target market
-   - Time to revenue estimate
+BİLİNEN BAŞLIKLAR (tekrarlama):
+{chr(10).join(f'- {t}' for t in kwargs.get('known_titles', [])[:15])}
 
-═══ PHASE 4: ADAPTATION PLAN ═══
-For the top {count} candidates, provide:
+{self._get_localization_json_template()}
 
-Return as JSON:
+En az 8 web araması yap. Gerçek acı noktaları, gerçek çözümler."""
+
+        return self._execute_and_parse(prompt)
+
+    # ═══════════════════════════════════════════════════════════
+    # STRATEGY 3: ARBITRAGE SCANNER (Price-Gap)
+    # ═══════════════════════════════════════════════════════════
+
+    def _strategy_arbitrage(self, **kwargs) -> list:
+        """Mathematical price-gap analysis between UK and Turkey."""
+        prompt = f"""Sen OpportunityScout'un Arbitrage Scanner stratejisisin.
+
+GÖREVİN: UK fiyatı ile Turkey maliyeti arasındaki en büyük spread'leri bul.
+
+ADIM A — FİYAT ARAŞTIRMASI: Web'de şunları ara:
+- "average cost [service] UK per hour" (IT support, design, development, consulting, accounting, etc.)
+- "freelancer rates Turkey [service]"
+- "outsourcing costs Turkey vs UK"
+- Manufacturing costs Turkey vs UK for specific products
+
+EN AZ 15 B2B hizmet/ürün kategorisinin UK fiyatını ve Turkey maliyetini bul:
+1. IT managed services
+2. Software development
+3. Cybersecurity services
+4. Graphic design / branding
+5. Accounting / bookkeeping
+6. Legal document preparation
+7. Customer service / call center
+8. CNC machining / manufacturing
+9. Furniture production
+10. Industrial coatings / painting
+11. Data entry / processing
+12. Content creation / copywriting
+13. 3D modeling / BIM services
+14. Quality inspection
+15. Packaging and logistics
+
+ADIM B — SPREAD HESAPLA: UK price / Turkey cost = margin multiplier
+En büyük spread'leri sırala.
+
+ADIM C — İŞ MODELİ: Top 3-5 spread için:
+- Bu spread'i exploit edecek spesifik iş modeli ne?
+- Founder hangi yeteneklerini kullanır?
+- Kalite nasıl garanti edilir?
+- Customer acquisition nasıl?
+
+OPERATOR PROFILE:
+{self._founder_profile}
+
+{self._get_localization_json_template()}
+
+Matematiksel ol. Gerçek fiyat verileri bul."""
+
+        return self._execute_and_parse(prompt)
+
+    # ═══════════════════════════════════════════════════════════
+    # STRATEGY 4: FAILURE ANALYSIS
+    # ═══════════════════════════════════════════════════════════
+
+    def _strategy_failure_analysis(self, **kwargs) -> list:
+        """Learn from UK startup failures — validated demand, known pitfalls."""
+        prompt = f"""Sen OpportunityScout'un Failure Analysis stratejisisin.
+
+GÖREVİN: UK'de başarısız olan startup'ları bul, neden başarısız olduklarını anla, founder bu tuzaklardan kaçınabilir mi değerlendir.
+
+ADIM A — BAŞARISIZ STARTUP'LAR: Web'de ara:
+- "UK startups that failed 2023 2024 2025"
+- "UK startup post-mortems"
+- "companies that shut down UK 2024"
+- "startup failures lessons learned UK"
+- "UK tech companies that pivoted or closed"
+
+En az 10 başarısız/kapanan/pivot eden UK startup bul.
+
+ADIM B — ANALİZ: Her biri için:
+- Ne yapıyordu?
+- Neden başarısız? (Timing? Capital? Execution? Market? Team?)
+- Demand var mıydı? (customers were they growing?)
+- Ne kadar fonlanmıştı?
+
+ADIM C — FOUNDER FİLTRESİ: Başarısızlık nedeni founder için geçerli mi?
+- "Too expensive to build" → Founder has Turkish cost advantage → MAYBE
+- "Couldn't find product-market fit" → Demand was never there → SKIP
+- "Ran out of capital" → Founder can bootstrap with AI → MAYBE
+- "Poor execution" → Founder has domain expertise → MAYBE
+- "Bad timing" → Timing better now? → CHECK
+
+ADIM D — YENİDEN TASARLA: Geçerli olmayan başarısızlık nedenleri olan startup'lar için:
+- Aynı problemi founder nasıl çözer?
+- AI ile nasıl daha ucuza yapılır?
+- Cross-border avantajı nasıl kullanılır?
+
+OPERATOR PROFILE:
+{self._founder_profile}
+
+{self._get_localization_json_template()}
+
+En az 6 web araması yap. Gerçek kapanmış/başarısız şirketler."""
+
+        return self._execute_and_parse(prompt)
+
+    # ═══════════════════════════════════════════════════════════
+    # STRATEGY 5: CAPABILITY×MARKET MATRIX
+    # ═══════════════════════════════════════════════════════════
+
+    def _strategy_capability_matrix(self, **kwargs) -> list:
+        """5 capability clusters × trending sectors → find empty cells."""
+        prompt = f"""Sen OpportunityScout'un Capability×Market Matrix stratejisisin.
+
+GÖREVİN: Founder'ın 5 yetenek cluster'ını trending sektörlerle çaprazla, boş hücreleri bul.
+
+ADIM A — TREND SEKTÖRLER: Web'de ara:
+- "fastest growing industries 2025 2026"
+- "emerging markets UK business opportunities"
+- "trending B2B sectors"
+Top 8-10 trending sektör bul.
+
+ADIM B — MATRİS OLUŞTUR:
+5 Yetenek × 10 Sektör = 50 hücre
+
+Yetenekler:
+1. Fabrika (CNC, coil coating, üretim)
+2. IT Altyapı (Cisco, VMware, Palo Alto, VDI)
+3. AI/Yazılım (Python, n8n, Claude API, AWS)
+4. Cross-border (UK-TR-UAE-US şirketler)
+5. İnşaat (BSA, yangın kapılar, BIM)
+
+Her hücre için: "Bu kesişimde dünyada proven bir model var mı?"
+Hızlıca web'de ara: "[capability] [sector] startup company"
+
+ADIM C — BOŞ HÜCRELER:
+Hiç kimsenin bakmadığı hücreler = en büyük fırsat
+Özellikle IT Altyapı ve Cross-border satırlarındaki boş hücreler çok değerli.
+
+ADIM D — İŞ MODELİ: Top 2-3 boş hücre için spesifik iş modeli tasarla.
+
+OPERATOR PROFILE:
+{self._founder_profile}
+
+{self._get_localization_json_template()}
+
+Sistematik ol. Her hücreyi kısaca değerlendir, en iyi boşluklar için detaylı model yaz."""
+
+        return self._execute_and_parse(prompt)
+
+    # ═══════════════════════════════════════════════════════════
+    # SHARED EXECUTION
+    # ═══════════════════════════════════════════════════════════
+
+    def _execute_and_parse(self, prompt: str) -> list:
+        """Execute a multi-turn web search and parse localization results."""
+        try:
+            messages = [{"role": "user", "content": prompt}]
+            response = self.client.messages.create(
+                model=self.model,
+                max_tokens=8192,
+                system=self._system_prompt,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                messages=messages
+            )
+
+            loop_count = 0
+            while response.stop_reason == "tool_use" and loop_count < 25:
+                loop_count += 1
+                logger.info(f"   🌍 Search loop {loop_count}")
+                messages.append({"role": "assistant", "content": response.content})
+
+                tool_results = []
+                for block in response.content:
+                    if block.type == "tool_use":
+                        tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": "Search completed."
+                        })
+
+                messages.append({"role": "user", "content": tool_results})
+                response = self.client.messages.create(
+                    model=self.model,
+                    max_tokens=8192,
+                    system=self._system_prompt,
+                    tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                    messages=messages
+                )
+
+            text = self._extract_text(response)
+            results = self._parse_response(text)
+            return results.get('opportunities', [])
+
+        except Exception as e:
+            logger.error(f"Localization search failed: {e}")
+            return []
+
+    def _get_localization_json_template(self) -> str:
+        """Shared JSON output format for all strategies."""
+        return """Include "action_by" date (YYYY-MM-DD or null) for time-sensitive opportunities.
+
+Sonuçları şu JSON formatında döndür:
 ```json
-{{
+{
   "opportunities": [
-    {{
-      "id": "LOC-{{YYYYMMDD}}-{{N}}",
-      "title": "Localized model name — [Original] for [Market]",
-      "one_liner": "What this is in one sentence",
-      "original_model": {{
-        "company": "Original company name",
-        "country": "Where it operates",
-        "founded": "Year",
-        "funding": "Total raised",
-        "what_they_do": "One paragraph",
-        "why_it_works": "Core insight",
-        "revenue_signals": "Any known revenue/traction data",
-        "url": "Company website"
-      }},
-      "gap_analysis": {{
+    {
+      "title": "Localized model name",
+      "one_liner": "Tek cümle açıklama",
+      "original_model": {
+        "company": "Orijinal şirket",
+        "country": "Ülke",
+        "funding": "Funding",
+        "what_they_do": "Ne yapıyor",
+        "url": "Website"
+      },
+      "gap_analysis": {
         "uk_status": "NO_EQUIVALENT | WEAK_EQUIVALENT",
-        "uk_competitors": "Any weak competitors found, or 'None found'",
+        "uk_competitors": "Varsa UK rakipler",
         "turkey_status": "NO_EQUIVALENT | WEAK_EQUIVALENT",
-        "turkey_competitors": "Any weak competitors found, or 'None found'",
-        "why_gap_exists": "Why hasn't someone done this already in UK/TR?"
-      }},
-      "localization_plan": {{
-        "target_market": "UK | Turkey | Both (UK first)",
-        "key_adaptations": "What needs to change from the original model",
-        "regulatory_advantage": "How UK/TR regulation helps or creates moat",
-        "cultural_adaptations": "Language, UX, trust, payment changes needed",
-        "ai_acceleration": "How AI makes this cheaper/faster to build than the original",
-        "cross_border_angle": "How UK↔Turkey positioning creates advantage"
-      }},
-      "business_model": {{
-        "revenue_type": "SaaS|Marketplace|Service|Product|Hybrid",
-        "pricing": "Specific pricing for UK/TR market",
-        "build_cost_estimate": "MVP cost estimate",
-        "time_to_revenue": "Realistic estimate",
-        "year_1_revenue_potential": "Conservative estimate"
-      }},
-      "founder_edge": "Why THIS operator, specifically?",
-      "first_move": "Exact action in the next 48 hours",
-      "week_1_plan": "Day-by-day first week",
-      "kill_criteria": "What proves this won't work?",
-      "confidence": "HIGH | MEDIUM | LOW",
-      "confidence_reasoning": "Why?",
-      "sector": "Primary sector",
-      "geography": "UK | Turkey | Both",
-      "tags": ["localization", "samwer-model", "sector-tag", "etc"],
-      "scores": {{
-        "founder_fit": {{"score": 8, "reason": "..."}},
-        "ai_unlock": {{"score": 7, "reason": "..."}},
-        "time_to_revenue": {{"score": 8, "reason": "..."}},
-        "capital_efficiency": {{"score": 9, "reason": "..."}},
-        "market_timing": {{"score": 7, "reason": "..."}},
-        "defensibility": {{"score": 6, "reason": "..."}},
-        "scale_potential": {{"score": 7, "reason": "..."}},
-        "geographic_leverage": {{"score": 9, "reason": "..."}},
-        "competition_gap": {{"score": 9, "reason": "..."}},
-        "simplicity": {{"score": 7, "reason": "..."}}
-      }}
-    }}
+        "turkey_competitors": "Varsa TR rakipler",
+        "why_gap_exists": "Neden boşluk var?"
+      },
+      "localization_plan": {
+        "target_market": "UK | Turkey | Both",
+        "key_adaptations": "Ne değişmeli",
+        "ai_acceleration": "AI nasıl ucuzlatır",
+        "cross_border_angle": "UK↔TR avantajı"
+      },
+      "business_model": {
+        "revenue_type": "SaaS|Marketplace|Service|Product",
+        "pricing": "Spesifik fiyatlandırma",
+        "time_to_revenue": "Ne zaman gelir"
+      },
+      "founder_edge": "Neden BU founder?",
+      "first_move": "İlk 48 saatte ne yapılacak",
+      "kill_criteria": "Neyi görürsen vazgeç",
+      "confidence": "HIGH|MEDIUM|LOW",
+      "sector": "Sektör",
+      "geography": "UK|Turkey|Both",
+      "tags": ["localization", "samwer-model", "tag"],
+      "scores": {
+        "founder_fit": {"score": 8, "reason": "..."},
+        "ai_unlock": {"score": 7, "reason": "..."},
+        "time_to_revenue": {"score": 8, "reason": "..."},
+        "capital_efficiency": {"score": 9, "reason": "..."},
+        "market_timing": {"score": 7, "reason": "..."},
+        "defensibility": {"score": 6, "reason": "..."},
+        "scale_potential": {"score": 7, "reason": "..."},
+        "geographic_leverage": {"score": 9, "reason": "..."},
+        "competition_gap": {"score": 9, "reason": "..."},
+        "simplicity": {"score": 7, "reason": "..."}
+      }
+    }
   ]
-}}
-```
+}
+```"""
 
-CRITICAL RULES:
-- SEARCH EXTENSIVELY. Use at least 10 different web searches. This module's value comes from finding what nobody in UK/Turkey is looking at.
-- Every original model must be REAL with verifiable funding/traction — no hypotheticals.
-- The gap check must be THOROUGH — actually search for UK/Turkey competitors before claiming a gap.
-- Cross-border angle (Turkish cost + UK revenue) should be evaluated for EVERY opportunity.
-- AI acceleration should be specific: "Claude API for customer service" not "AI helps."
-- Prioritize models that work with the operator's EXISTING skills (IT, automation, construction, manufacturing, cross-border trade).
-- The best localization opportunities are often in BORING sectors that VCs in the original market have validated but UK/TR VCs haven't noticed yet.
-- If you can't find {count} strong candidates, return fewer. Never pad with weak ideas."""
-
-    # ─── Result Processing ──────────────────────────────────
+    # ═══════════════════════════════════════════════════════════
+    # RESULT PROCESSING
+    # ═══════════════════════════════════════════════════════════
 
     def _finalize_opportunity(self, opp: dict) -> dict:
-        """Calculate weighted score and finalize opportunity for storage."""
+        """Calculate score and finalize for storage."""
         scores = opp.get('scores', {})
         opp['weighted_total'] = self._calculate_weighted_total(scores)
         opp['tier'] = self._determine_tier(opp['weighted_total'])
@@ -328,40 +503,29 @@ CRITICAL RULES:
         if 'localization' not in opp.get('tags', []):
             opp.setdefault('tags', []).append('localization')
         if 'samwer-model' not in opp.get('tags', []):
-            opp['tags'].append('samwer-model')
+            opp.setdefault('tags', []).append('samwer-model')
 
-        # Flatten for knowledge base storage
-        opp.setdefault('why_now', opp.get('gap_analysis', {}).get(
-            'why_gap_exists', ''
-        ))
+        opp.setdefault('why_now', opp.get('gap_analysis', {}).get('why_gap_exists', ''))
         opp.setdefault('first_move', opp.get('first_move', ''))
-        opp.setdefault('revenue_path', opp.get('business_model', {}).get(
-            'pricing', ''
-        ))
+        opp.setdefault('revenue_path', opp.get('business_model', {}).get('pricing', ''))
         opp.setdefault('risks', [opp.get('kill_criteria', 'Unknown')])
         opp.setdefault('sector', opp.get('sector', ''))
         opp.setdefault('geography', opp.get('geography', 'UK'))
-
-        # Store rich data in source_date field for now
-        # (full model data preserved in the opp dict for Telegram output)
         opp['source_date'] = datetime.utcnow().strftime('%Y-%m-%d')
 
-        if not opp.get('id'):
-            opp['id'] = (
-                f"LOC-{datetime.utcnow().strftime('%Y%m%d')}-"
-                f"{hash(opp.get('title', '')) % 1000:03d}"
-            )
+        # ID is assigned by knowledge_base.save_opportunity() — no need to set here
 
         return opp
 
-    # ─── Context Helpers ────────────────────────────────────
+    # ═══════════════════════════════════════════════════════════
+    # HELPERS
+    # ═══════════════════════════════════════════════════════════
 
     def _get_known_titles(self) -> list:
         opps = self.kb.get_top_opportunities(limit=30)
         return [o.get('title', '') for o in opps if o.get('title')]
 
     def _get_previous_localizations(self) -> list:
-        """Get titles of previously found localization opportunities."""
         try:
             cursor = self.kb.conn.cursor()
             cursor.execute("""
@@ -373,62 +537,120 @@ CRITICAL RULES:
         except Exception:
             return []
 
-    # ─── Scoring ────────────────────────────────────────────
-
     def _calculate_weighted_total(self, scores: dict) -> float:
-        weights = self.config.get('scoring', {}).get('weights', {
-            'founder_fit': 3.0, 'ai_unlock': 2.5, 'time_to_revenue': 2.5,
-            'capital_efficiency': 2.0, 'market_timing': 2.0,
-            'defensibility': 1.5, 'scale_potential': 1.5,
-            'geographic_leverage': 1.5, 'competition_gap': 1.0,
-            'simplicity': 1.0
-        })
-        total = 0.0
-        for dim, weight in weights.items():
-            score_data = scores.get(dim, {})
-            score = score_data.get('score', 0) if isinstance(score_data, dict) else (
-                score_data if isinstance(score_data, (int, float)) else 0
-            )
-            total += score * weight
-        return round(total, 1)
+        return calculate_weighted_total(scores, self.config)
 
     def _determine_tier(self, weighted_total: float) -> str:
-        thresholds = self.config.get('scoring', {}).get('tiers', {
-            'fire': 150, 'high': 120, 'medium': 90
-        })
-        if weighted_total >= thresholds.get('fire', 150):
-            return 'FIRE'
-        elif weighted_total >= thresholds.get('high', 120):
-            return 'HIGH'
-        elif weighted_total >= thresholds.get('medium', 90):
-            return 'MEDIUM'
-        return 'LOW'
-
-    # ─── Parsing ────────────────────────────────────────────
+        return determine_tier(weighted_total, self.config)
 
     def _parse_response(self, text: str) -> dict:
+        """Extract JSON with multiple fallback strategies including truncation repair."""
         import re
+        default = {"opportunities": []}
+
+        if not text or not text.strip():
+            return default
+
+        # Strategy 1: Direct parse
         try:
-            return json.loads(text)
+            return json.loads(text.strip())
         except json.JSONDecodeError:
             pass
 
+        # Strategy 2: Code fence
         json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
         if json_match:
             try:
-                return json.loads(json_match.group(1))
+                return json.loads(json_match.group(1).strip())
             except json.JSONDecodeError:
                 pass
 
-        json_match = re.search(r'\{[\s\S]*"opportunities"[\s\S]*\}', text)
-        if json_match:
+        # Strategy 3: Find first '{' and parse from there
+        first_brace = text.find('{')
+        if first_brace >= 0:
+            json_candidate = text[first_brace:]
             try:
-                return json.loads(json_match.group(0))
+                return json.loads(json_candidate)
             except json.JSONDecodeError:
                 pass
 
-        logger.warning("Could not parse JSON from localization scan response")
-        return {"opportunities": []}
+            # Strategy 4: Repair truncated JSON
+            repaired = self._repair_truncated_json(json_candidate)
+            if repaired:
+                try:
+                    return json.loads(repaired)
+                except json.JSONDecodeError:
+                    pass
+
+        logger.warning("Could not parse JSON from localization response")
+        logger.warning(f"Raw text (first 500): {text[:500]}")
+        return default
+
+    @staticmethod
+    def _repair_truncated_json(text: str) -> str:
+        """Repair truncated JSON by closing open brackets/braces."""
+        if not text:
+            return ""
+        depth_brace = 0
+        depth_bracket = 0
+        last_safe_pos = 0
+        in_string = False
+        escape_next = False
+
+        for i, ch in enumerate(text):
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\' and in_string:
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == '{':
+                depth_brace += 1
+            elif ch == '}':
+                depth_brace -= 1
+                if depth_brace >= 0:
+                    last_safe_pos = i + 1
+            elif ch == '[':
+                depth_bracket += 1
+            elif ch == ']':
+                depth_bracket -= 1
+
+        if depth_brace == 0 and depth_bracket == 0:
+            return text
+
+        repaired = text[:last_safe_pos]
+        depth_brace = 0
+        depth_bracket = 0
+        in_string = False
+        escape_next = False
+        for ch in repaired:
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\' and in_string:
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == '{':
+                depth_brace += 1
+            elif ch == '}':
+                depth_brace -= 1
+            elif ch == '[':
+                depth_bracket += 1
+            elif ch == ']':
+                depth_bracket -= 1
+
+        repaired += ']' * depth_bracket + '}' * depth_brace
+        return repaired
 
     @staticmethod
     def _extract_text(response) -> str:

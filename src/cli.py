@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """
-OpportunityScout — CLI Entry Point
+OpportunityScout — CLI Entry Point (Intelligence Mesh v2)
 
 Usage:
-    python -m src.cli scan [--tier 1|2|3]
+    python -m src.cli scan [--tier 1|2|3|all]
     python -m src.cli digest
     python -m src.cli weekly
     python -m src.cli deep_dive "topic or OPP-ID"
     python -m src.cli score "your business idea description"
+    python -m src.cli generate [--focus AREA] [--count N]
+    python -m src.cli serendipity [--mode daily|deep]
+    python -m src.cli localize [--focus SECTOR] [--count N]
+    python -m src.cli explore [--capability X] [--industry Y] [--count N]
+    python -m src.cli deadlines
+    python -m src.cli competitors [--opportunity OPP-ID]
+    python -m src.cli crosspoll
     python -m src.cli evolve
     python -m src.cli stats
     python -m src.cli portfolio [--top N]
@@ -45,9 +52,25 @@ async def cmd_scan(args):
     """Run a scan cycle."""
     from .scout_engine import ScoutEngine
     engine = ScoutEngine()
-    tier = getattr(args, 'tier', 1) or 1
-    result = await engine.run_scan_cycle(tier=int(tier))
-    print(json.dumps(result, indent=2))
+    tier_val = getattr(args, 'tier', '1') or '1'
+
+    if str(tier_val) in ('0', 'all'):
+        # --tier all means ALL tiers + comprehensive email report
+        print(f"\n{'='*60}")
+        print(f"🔍 FULL SCAN — All Tiers (1+2+3)")
+        print(f"{'='*60}")
+        result = await engine.run_full_scan(tiers=[1, 2, 3])
+        combined_stats = result.get('combined_stats', {})
+        print(f"\n{'='*60}")
+        print(f"✅ ALL TIERS COMPLETE")
+        print(f"  Opportunities: {combined_stats.get('opportunities_found', 0)}")
+        print(f"  FIRE alerts: {combined_stats.get('fire_alerts', 0)}")
+        print(f"  Duration: {result.get('total_duration', 0):.0f}s")
+        print(f"  📧 Scan report email sent!")
+        print(f"{'='*60}")
+    else:
+        result = await engine.run_scan_cycle(tier=int(tier_val))
+        print(json.dumps(result, indent=2, default=str))
 
 
 async def cmd_digest(args):
@@ -86,7 +109,7 @@ async def cmd_score(args):
         print(f"📊 OPPORTUNITY SCORECARD")
         print(f"{'='*60}")
         print(f"Title: {opp.get('title', 'N/A')}")
-        print(f"Score: {opp.get('weighted_total', 0)}/185")
+        print(f"Score: {opp.get('weighted_total', 0)}/155")
         print(f"Tier:  {opp.get('tier', 'N/A')}")
         print(f"\nOne-liner: {opp.get('one_liner', 'N/A')}")
         print(f"\nScores:")
@@ -154,7 +177,7 @@ async def cmd_generate(args):
         )
         print(f"{'─'*70}")
         print(f"MODEL {i}: {tier_emoji} {model.get('title', 'Untitled')}")
-        print(f"Score: {model.get('weighted_total', 0)}/185 ({model.get('tier', '?')})")
+        print(f"Score: {model.get('weighted_total', 0)}/155 ({model.get('tier', '?')})")
         print(f"\n{model.get('one_liner', '')}")
         print(f"\nPROBLEM: {gen.get('problem', 'N/A')[:300]}")
         print(f"\nSOLUTION: {gen.get('solution', 'N/A')[:300]}")
@@ -247,7 +270,7 @@ async def cmd_localize(args):
 
         print(f"{'─'*70}")
         print(f"{i}. {tier_emoji} {opp.get('title', '?')}")
-        print(f"   Score: {opp.get('weighted_total', 0)}/185 ({opp.get('tier', '?')})")
+        print(f"   Score: {opp.get('weighted_total', 0)}/155 ({opp.get('tier', '?')})")
         print(f"\n   {opp.get('one_liner', '')}")
         print(f"\n   ORIGINAL: {original.get('company', '?')} ({original.get('country', '?')})")
         print(f"   Funding: {original.get('funding', 'N/A')}")
@@ -259,6 +282,143 @@ async def cmd_localize(args):
 
     print(f"{'='*70}")
     print(f"All results saved and sent to Telegram.")
+
+
+async def cmd_explore(args):
+    """Run capability-first exploration — discover opportunities from founder's skills."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    capability = getattr(args, 'capability', None)
+    industry = getattr(args, 'industry', None)
+    count = getattr(args, 'count', 3) or 3
+
+    print(f"\n🔭 Running capability exploration...")
+    if capability:
+        print(f"   Capability: {capability}")
+    if industry:
+        print(f"   Industry: {industry}")
+    if not capability and not industry:
+        print(f"   Auto-selecting {count} least explored capability×industry pairs...")
+    print(f"   This may take 3-5 minutes.\n")
+
+    result = await engine.run_exploration(
+        capability=capability, industry=industry, count=int(count)
+    )
+
+    explorations = result.get('explorations', [])
+    opportunities = result.get('opportunities', [])
+
+    print(f"{'='*70}")
+    print(f"🔭 CAPABILITY EXPLORATION RESULTS")
+    print(f"{'='*70}")
+    print(f"Explorations run: {len(explorations)}")
+    print(f"Total opportunities: {len(opportunities)}")
+    print()
+
+    for r in explorations:
+        cap = r.get('capability', '?')
+        ind = r.get('industry', '?')
+        opps = r.get('opportunities', [])
+        neg = r.get('negative_evidence', '')
+
+        print(f"{'─'*70}")
+        print(f"🔬 {cap} × {ind}")
+        if opps:
+            for opp in opps:
+                tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
+                    opp.get('tier', ''), "📝"
+                )
+                print(f"   {tier_emoji} {opp.get('title', '?')} — {opp.get('weighted_total', 0)}/155")
+                print(f"      {opp.get('one_liner', '')}")
+        elif neg:
+            print(f"   ⚠️ Negative evidence: {neg[:200]}")
+        else:
+            print(f"   No opportunities found")
+        print()
+
+    print(f"{'='*70}")
+    print(f"Results saved and sent to Telegram.")
+
+
+async def cmd_deadlines(args):
+    """Check regulatory deadlines and timing windows."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+
+    print(f"\n📅 Checking regulatory deadlines...\n")
+    result = await engine.check_deadlines()
+
+    report = engine.temporal.get_deadline_report()
+    print(report)
+    print(f"\n{'='*40}")
+    print(f"Total alerts: {result.get('count', 0)}")
+
+
+async def cmd_competitors(args):
+    """Run competitive intelligence scan."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    opp_id = getattr(args, 'opportunity', None)
+
+    print(f"\n🏢 Running competitive scan...")
+    if opp_id:
+        print(f"   Targeting opportunity: {opp_id}")
+    print(f"   This may take 3-5 minutes.\n")
+
+    result = await engine.run_competitive_scan(opportunity_id=opp_id)
+
+    print(f"{'='*70}")
+    print(f"🏢 COMPETITIVE INTELLIGENCE RESULTS")
+    print(f"{'='*70}")
+    print(f"New competitors identified: {result.get('new_competitors_identified', 0)}")
+    print(f"Competitors monitored: {result.get('competitors_monitored', 0)}")
+    print(f"Opportunity signals: {result.get('signals_found', 0)}")
+
+    report = engine.competitors.get_competitor_report()
+    print(f"\n{report}")
+
+
+async def cmd_crosspoll(args):
+    """Run cross-sector connection analysis."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+
+    print(f"\n🔗 Running cross-pollination analysis...")
+    print(f"   Finding connections between opportunities from different sectors...")
+    print(f"   This may take 5-8 minutes.\n")
+
+    result = await engine.run_cross_pollination()
+
+    connections = result.get('connections', [])
+    hybrids = result.get('hybrid_opportunities', [])
+
+    print(f"{'='*70}")
+    print(f"🔗 CROSS-POLLINATION RESULTS")
+    print(f"{'='*70}")
+    print(f"Connections found: {len(connections)}")
+    print(f"Hybrid opportunities: {len(hybrids)}")
+    print()
+
+    for i, conn in enumerate(connections, 1):
+        sectors = ', '.join(conn.get('sectors', []))
+        print(f"{'─'*70}")
+        print(f"{i}. [{conn.get('connection_type', '?')}] {sectors}")
+        print(f"   Insight: {conn.get('insight', '')[:200]}")
+        print(f"   Hybrid: {conn.get('hybrid_opportunity', '')[:200]}")
+        print()
+
+    if hybrids:
+        print(f"\n{'─'*70}")
+        print(f"HYBRID OPPORTUNITIES:")
+        for opp in hybrids:
+            tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
+                opp.get('tier', ''), "📝"
+            )
+            print(f"  {tier_emoji} {opp.get('title', '?')} — {opp.get('weighted_total', 0)}/155")
+            print(f"     {opp.get('one_liner', '')}")
+
+    print(f"\n{'='*70}")
+    print(f"Results saved and sent to Telegram.")
 
 
 def cmd_stats(args):
@@ -339,14 +499,14 @@ def cmd_sources(args):
     kb.close()
 
 
-async def cmd_serve(args):
+def cmd_serve(args):
     """Start Telegram bot listener for interactive commands."""
     from .scout_engine import ScoutEngine
     engine = ScoutEngine()
     app = engine.telegram.setup_command_handlers(engine)
     if app:
         print("🤖 Telegram bot is running. Press Ctrl+C to stop.")
-        await app.run_polling()
+        app.run_polling()
     else:
         print("❌ Could not start Telegram bot. Check configuration.")
 
@@ -377,7 +537,8 @@ def main():
 
     # Scan
     scan_parser = subparsers.add_parser('scan', help='Run a scan cycle')
-    scan_parser.add_argument('--tier', type=int, default=1, choices=[1, 2, 3])
+    scan_parser.add_argument('--tier', type=str, default='1', choices=['1', '2', '3', '0', 'all'],
+                             help='1/2/3 for specific tier, 0 or all for all tiers')
 
     # Digest
     subparsers.add_parser('digest', help='Generate daily digest')
@@ -410,6 +571,16 @@ def main():
                            choices=['daily', 'deep'],
                            help='daily = Sonnet light scan, deep = Opus full analysis')
 
+    # Explore — capability-first discovery
+    exp_parser = subparsers.add_parser('explore',
+                                       help='Explore opportunities from founder capabilities')
+    exp_parser.add_argument('--capability', type=str, default=None,
+                           help='Specific capability cluster (e.g., "it_infrastructure")')
+    exp_parser.add_argument('--industry', type=str, default=None,
+                           help='Specific adjacent industry (e.g., "managed_soc")')
+    exp_parser.add_argument('--count', type=int, default=3,
+                           help='Number of explorations to run (default: 3)')
+
     # Localize — Samwer/Rocket Internet lens
     loc_parser = subparsers.add_parser('localize',
                                        help='Find proven models to copy into UK/Turkey')
@@ -417,6 +588,18 @@ def main():
                            help='Focus sector (e.g., "proptech", "healthtech")')
     loc_parser.add_argument('--count', type=int, default=5,
                            help='Number of models to find (default: 5)')
+
+    # Deadlines — regulatory calendar
+    subparsers.add_parser('deadlines', help='Check regulatory deadlines')
+
+    # Competitors — competitive intelligence
+    comp_parser = subparsers.add_parser('competitors',
+                                        help='Run competitive intelligence scan')
+    comp_parser.add_argument('--opportunity', type=str, default=None,
+                            help='Specific opportunity ID to analyze')
+
+    # Cross-pollination — find connections
+    subparsers.add_parser('crosspoll', help='Find cross-sector connections')
 
     # Stats
     subparsers.add_parser('stats', help='Show system statistics')
@@ -448,6 +631,7 @@ def main():
         'portfolio': cmd_portfolio,
         'sources': cmd_sources,
         'init': cmd_init,
+        'serve': cmd_serve,
     }
 
     async_commands = {
@@ -460,7 +644,10 @@ def main():
         'generate': cmd_generate,
         'serendipity': cmd_serendipity,
         'localize': cmd_localize,
-        'serve': cmd_serve,
+        'explore': cmd_explore,
+        'deadlines': cmd_deadlines,
+        'competitors': cmd_competitors,
+        'crosspoll': cmd_crosspoll,
     }
 
     if args.command in sync_commands:

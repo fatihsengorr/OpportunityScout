@@ -13,6 +13,12 @@ exports/
 .vscode/
 .idea/
 
+# Secrets & Keys
+*.pem
+
+# Exports / temp data
+all_opportunities.json
+
 # OS
 .DS_Store
 Thumbs.db

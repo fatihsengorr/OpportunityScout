@@ -9,9 +9,11 @@ This is the analytical brain that converts noise into signal.
 import json
 import logging
 import os
+import uuid
 from datetime import datetime
 from pathlib import Path
 from anthropic import Anthropic
+from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.scorer")
 
@@ -43,7 +45,7 @@ class OpportunityScorer:
             logger.warning("System prompt file not found, using embedded default")
             return self._default_system_prompt()
 
-    def analyze_batch(self, content_items: list, batch_size: int = 5) -> dict:
+    def analyze_batch(self, content_items: list, batch_size: int = 5, extra_context: str = "") -> dict:
         """
         Analyze a batch of content items and extract opportunities.
         Groups items to minimize API calls while staying within context limits.
@@ -73,7 +75,7 @@ class OpportunityScorer:
         for i in range(0, len(real_items), batch_size):
             batch = real_items[i:i + batch_size]
             try:
-                result = self._analyze_content_batch(batch)
+                result = self._analyze_content_batch(batch, extra_context=extra_context)
                 if result:
                     all_results["opportunities"].extend(
                         result.get("opportunities", [])
@@ -89,8 +91,7 @@ class OpportunityScorer:
 
         # Assign IDs and calculate weighted totals
         for idx, opp in enumerate(all_results["opportunities"]):
-            if 'id' not in opp or not opp['id']:
-                opp['id'] = f"OPP-{datetime.utcnow().strftime('%Y%m%d')}-{idx+1:03d}"
+            # ID is assigned by knowledge_base.save_opportunity() — no need to set here
             opp['weighted_total'] = self._calculate_weighted_total(opp.get('scores', {}))
             opp['tier'] = self._determine_tier(opp['weighted_total'])
 
@@ -228,7 +229,7 @@ class OpportunityScorer:
 
     # ─── Internal Methods ───────────────────────────────────
 
-    def _analyze_content_batch(self, items: list) -> dict:
+    def _analyze_content_batch(self, items: list, extra_context: str = "") -> dict:
         """Send a batch of content items to Claude for analysis."""
         items_text = "\n\n---\n\n".join([
             f"SOURCE: {item.source_name}\n"
@@ -239,6 +240,14 @@ class OpportunityScorer:
             f"CONTENT:\n{item.content}"
             for item in items
         ])
+
+        context_block = ""
+        if extra_context:
+            context_block = (
+                f"\n\nOPERATOR CONTEXT (from Open Brain — use this to personalize "
+                f"scoring, especially founder_fit, execution_speed, and revenue_potential "
+                f"dimensions):\n\n{extra_context}\n\n"
+            )
 
         response = self.client.messages.create(
             model=self.model,
@@ -252,6 +261,7 @@ class OpportunityScorer:
                     f"Score opportunities using the 10-dimension model. "
                     f"Look for cross-pollination opportunities between items.\n\n"
                     f"If no opportunities or signals exist, return empty arrays.\n\n"
+                    f"{context_block}"
                     f"CONTENT ITEMS:\n\n{items_text}"
                 )
             }]
@@ -265,75 +275,121 @@ class OpportunityScorer:
         return self._parse_json_response(text_content)
 
     def _parse_json_response(self, text: str) -> dict:
-        """Extract and parse JSON from Claude's response."""
-        # Try to find JSON in the response
+        """Extract JSON with multiple fallback strategies including truncation repair."""
+        import re
+        default = {"opportunities": [], "signals": [], "cross_pollinations": []}
+
+        if not text or not text.strip():
+            return default
+
+        # Strategy 1: Direct parse
         try:
-            # First try: direct JSON parse
-            return json.loads(text)
+            return json.loads(text.strip())
         except json.JSONDecodeError:
             pass
 
-        # Second try: find JSON block in markdown
-        import re
+        # Strategy 2: Code fence
         json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
         if json_match:
             try:
-                return json.loads(json_match.group(1))
+                return json.loads(json_match.group(1).strip())
             except json.JSONDecodeError:
                 pass
 
-        # Third try: find anything that looks like our JSON structure
-        json_match = re.search(r'\{[\s\S]*"opportunities"[\s\S]*\}', text)
-        if json_match:
+        # Strategy 3: Find first '{' and parse from there
+        first_brace = text.find('{')
+        if first_brace >= 0:
+            json_candidate = text[first_brace:]
             try:
-                return json.loads(json_match.group(0))
+                return json.loads(json_candidate)
             except json.JSONDecodeError:
                 pass
+
+            # Strategy 4: Repair truncated JSON
+            repaired = self._repair_truncated_json(json_candidate)
+            if repaired:
+                try:
+                    return json.loads(repaired)
+                except json.JSONDecodeError:
+                    pass
 
         logger.warning("Could not parse JSON from Claude response")
-        logger.debug(f"Raw response: {text[:500]}")
-        return {"opportunities": [], "signals": [], "cross_pollinations": []}
+        logger.warning(f"Raw text (first 500): {text[:500]}")
+        return default
+
+    @staticmethod
+    def _repair_truncated_json(text: str) -> str:
+        """Repair truncated JSON by closing open brackets/braces."""
+        if not text:
+            return ""
+        depth_brace = 0
+        depth_bracket = 0
+        last_safe_pos = 0
+        in_string = False
+        escape_next = False
+
+        for i, ch in enumerate(text):
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\' and in_string:
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == '{':
+                depth_brace += 1
+            elif ch == '}':
+                depth_brace -= 1
+                if depth_brace >= 0:
+                    last_safe_pos = i + 1
+            elif ch == '[':
+                depth_bracket += 1
+            elif ch == ']':
+                depth_bracket -= 1
+
+        if depth_brace == 0 and depth_bracket == 0:
+            return text
+
+        repaired = text[:last_safe_pos]
+        depth_brace = 0
+        depth_bracket = 0
+        in_string = False
+        escape_next = False
+        for ch in repaired:
+            if escape_next:
+                escape_next = False
+                continue
+            if ch == '\\' and in_string:
+                escape_next = True
+                continue
+            if ch == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if ch == '{':
+                depth_brace += 1
+            elif ch == '}':
+                depth_brace -= 1
+            elif ch == '[':
+                depth_bracket += 1
+            elif ch == ']':
+                depth_bracket -= 1
+
+        repaired += ']' * depth_bracket + '}' * depth_brace
+        return repaired
 
     def _calculate_weighted_total(self, scores: dict) -> float:
-        """Calculate weighted total from dimension scores."""
-        weights = self.config.get('scoring', {}).get('weights', {
-            'founder_fit': 3.0,
-            'ai_unlock': 2.5,
-            'time_to_revenue': 2.5,
-            'capital_efficiency': 2.0,
-            'market_timing': 2.0,
-            'defensibility': 1.5,
-            'scale_potential': 1.5,
-            'geographic_leverage': 1.5,
-            'competition_gap': 1.0,
-            'simplicity': 1.0
-        })
-
-        total = 0.0
-        for dim, weight in weights.items():
-            score_data = scores.get(dim, {})
-            if isinstance(score_data, dict):
-                score = score_data.get('score', 0)
-            elif isinstance(score_data, (int, float)):
-                score = score_data
-            else:
-                score = 0
-            total += score * weight
-
-        return round(total, 1)
+        """Calculate weighted total from dimension scores. Delegates to scoring_utils."""
+        return calculate_weighted_total(scores, self.config)
 
     def _determine_tier(self, weighted_total: float) -> str:
-        """Determine opportunity tier from weighted total."""
-        thresholds = self.config.get('scoring', {}).get('tiers', {
-            'fire': 150, 'high': 120, 'medium': 90
-        })
-        if weighted_total >= thresholds.get('fire', 150):
-            return 'FIRE'
-        elif weighted_total >= thresholds.get('high', 120):
-            return 'HIGH'
-        elif weighted_total >= thresholds.get('medium', 90):
-            return 'MEDIUM'
-        return 'LOW'
+        """Determine opportunity tier from weighted total. Delegates to scoring_utils."""
+        return determine_tier(weighted_total, self.config)
 
     def _default_system_prompt(self) -> str:
         return (

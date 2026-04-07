@@ -1,0 +1,93 @@
+# OpportunityScout — Forced Sector Rotation Schedule
+# Ensures every capability cluster gets explored monthly.
+# Construction is NOT on rotation — it gets enough coverage from RSS sources.
+# Used by: Serendipity Engine (Strategy 2 & 3), Web Scanner (dynamic queries)
+
+rotation:
+  # Week number within the month (1-4)
+  week_1:
+    name: "IT Infrastructure & Cybersecurity"
+    sectors:
+      - managed IT services
+      - cybersecurity consulting
+      - SOC as a service
+      - remote work infrastructure
+      - VDI solutions
+      - network monitoring
+    buyer_personas:
+      - "UK SME IT manager"
+      - "UK managed service provider owner"
+      - "healthcare IT director"
+    keywords:
+      - NIS2
+      - Cyber Essentials
+      - managed SOC
+      - MSSP
+      - zero trust
+      - VDI remote desktop
+
+  week_2:
+    name: "AI SaaS & Automation"
+    sectors:
+      - AI workflow automation
+      - no-code/low-code platforms
+      - AI agents for SMEs
+      - SaaS regulatory compliance
+      - AI consulting
+      - process automation
+    buyer_personas:
+      - "UK SME operations manager"
+      - "professional services firm partner"
+      - "e-commerce business owner"
+    keywords:
+      - n8n automation
+      - AI agents
+      - workflow optimization
+      - regulatory compliance SaaS
+      - GPT wrappers alternatives
+      - vertical AI
+
+  week_3:
+    name: "Cross-border Trade & E-commerce"
+    sectors:
+      - cross-border B2B marketplace
+      - private label products
+      - import/export consulting
+      - e-commerce fulfillment
+      - marketplace arbitrage
+      - Turkish exports
+    buyer_personas:
+      - "UK Amazon FBA seller"
+      - "UAE hospitality procurement manager"
+      - "US restaurant owner sourcing"
+    keywords:
+      - Turkish exports UK
+      - cross-border e-commerce
+      - private label manufacturing
+      - Alibaba alternatives
+      - B2B marketplace
+      - IKMIB chemicals
+
+  week_4:
+    name: "Chemicals, Coatings & Manufacturing Adjacent"
+    sectors:
+      - specialty coatings
+      - intumescent coatings
+      - industrial chemicals trade
+      - surface finishing
+      - polymer adhesives
+      - factory automation
+    buyer_personas:
+      - "UK coatings distributor"
+      - "European OEM manufacturer"
+      - "construction materials buyer"
+    keywords:
+      - intumescent coating
+      - coil coating
+      - specialty paint
+      - REACH chemicals
+      - surface finishing
+      - Industry 4.0
+
+# Which week are we in? Calculate: (day_of_month - 1) // 7 + 1
+# Fallback: if month has 5th week, use week_4 sectors

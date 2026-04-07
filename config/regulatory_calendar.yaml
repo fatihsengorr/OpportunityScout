@@ -1,0 +1,104 @@
+# OpportunityScout — Regulatory Calendar
+# Known regulatory deadlines that create business opportunities
+# Updated monthly via temporal intelligence module
+
+deadlines:
+
+  # ─── UK Building Safety ─────────────────────────────────
+  - name: "BSA Golden Thread (Building Safety Act)"
+    deadline_date: "2026-10-01"
+    description: "All higher-risk buildings must maintain a digital golden thread of building information"
+    capabilities: [construction, it_infrastructure, ai_software]
+    impact: "Massive — every HRB needs digital records. BIM/digital twin demand explosion."
+    search_queries:
+      - "Building Safety Act golden thread compliance tools"
+      - "BSA digital records software UK"
+      - "golden thread building information management"
+    regions: [uk]
+
+  - name: "MEES EPC-C Minimum Standard"
+    deadline_date: "2027-04-01"
+    description: "Rented commercial properties must achieve minimum EPC rating C"
+    capabilities: [construction, manufacturing]
+    impact: "Retrofitting wave for commercial properties. Energy efficiency services demand."
+    search_queries:
+      - "MEES EPC-C compliance deadline UK commercial"
+      - "energy performance certificate upgrading services"
+    regions: [uk]
+
+  # ─── Cybersecurity & IT ─────────────────────────────────
+  - name: "NIS2 Directive (EU/UK aligned)"
+    deadline_date: "2026-10-17"
+    description: "Network and Information Security directive — expands cybersecurity obligations to more sectors"
+    capabilities: [it_infrastructure, ai_software]
+    impact: "UK likely to align. SMEs need managed security, SOC services, compliance tools."
+    search_queries:
+      - "NIS2 cybersecurity compliance UK SME"
+      - "NIS2 managed SOC services"
+      - "NIS2 directive implementation UK"
+    regions: [uk, eu]
+
+  - name: "UK Cyber Essentials Expansion"
+    deadline_date: "2026-06-01"
+    description: "Extended Cyber Essentials requirements for more government suppliers"
+    capabilities: [it_infrastructure]
+    impact: "More companies need CE certification — consulting and managed services opportunity."
+    search_queries:
+      - "Cyber Essentials Plus mandatory suppliers UK"
+      - "cyber essentials certification services"
+    regions: [uk]
+
+  # ─── AI Regulation ──────────────────────────────────────
+  - name: "EU AI Act — High-Risk System Compliance"
+    deadline_date: "2026-08-02"
+    description: "High-risk AI systems must comply with EU AI Act requirements"
+    capabilities: [ai_software, it_infrastructure]
+    impact: "Companies deploying AI need compliance frameworks, auditing, documentation."
+    search_queries:
+      - "EU AI Act compliance tools"
+      - "AI risk assessment framework"
+      - "high-risk AI system audit"
+    regions: [eu, uk]
+
+  # ─── Trade & Cross-Border ──────────────────────────────
+  - name: "CBAM (Carbon Border Adjustment Mechanism) Phase 2"
+    deadline_date: "2026-01-01"
+    description: "EU CBAM expands — importers must report embedded carbon in goods"
+    capabilities: [cross_border, manufacturing]
+    impact: "Turkish/UK exporters to EU need carbon reporting. Consulting + SaaS opportunity."
+    search_queries:
+      - "CBAM carbon reporting tools"
+      - "carbon border adjustment mechanism compliance"
+    regions: [eu, uk, turkey]
+
+  - name: "UK-GCC Free Trade Agreement (expected)"
+    deadline_date: "2026-12-31"
+    description: "Potential UK-Gulf Cooperation Council FTA — opens trade corridors"
+    capabilities: [cross_border, manufacturing]
+    impact: "New trade routes for UK-Turkey-Gulf. Logistics, compliance, market entry services."
+    search_queries:
+      - "UK GCC free trade agreement progress"
+      - "UK Gulf trade opportunities 2026"
+    regions: [uk, gulf]
+
+  # ─── Construction/Fire Safety ──────────────────────────
+  - name: "Fire Safety (England) Regulations Review"
+    deadline_date: "2026-07-01"
+    description: "Mandatory annual fire door checks for all HRBs"
+    capabilities: [construction]
+    impact: "Annual fire door inspections create recurring service revenue opportunity."
+    search_queries:
+      - "fire door inspection mandatory UK"
+      - "fire safety regulations 2026 England"
+    regions: [uk]
+
+  # ─── Data & Digital ────────────────────────────────────
+  - name: "UK Data Protection & Digital Information Bill"
+    deadline_date: "2026-09-01"
+    description: "Reforms to UK GDPR — potential changes to data processing rules"
+    capabilities: [ai_software, it_infrastructure]
+    impact: "New compliance requirements for data processors. Privacy tech opportunity."
+    search_queries:
+      - "UK data protection bill 2026"
+      - "DPDI bill impact businesses"
+    regions: [uk]
