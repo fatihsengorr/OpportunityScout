@@ -188,6 +188,55 @@ async def cmd_generate(args):
     print(f"All models saved and sent to Telegram.")
 
 
+async def cmd_horizon(args):
+    """Run horizon scanner — unbounded 7-lens discovery engine."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    mode = getattr(args, 'mode', 'daily') or 'daily'
+
+    if mode == 'deep':
+        print(f"\n🔭 Running DEEP horizon scan (Opus, all 7 lenses)...")
+        print(f"   This may take 10-15 minutes.\n")
+        result = await engine.run_horizon_weekly()
+    else:
+        print(f"\n🔭 Running daily horizon scan (Sonnet, 3 rotating lenses)...")
+        print(f"   This may take 3-5 minutes.\n")
+        result = await engine.run_horizon_daily()
+
+    opps = result.get('opportunities', [])
+    lens_results = result.get('lens_results', {})
+    frontiers = result.get('new_frontiers', [])
+
+    print(f"{'='*70}")
+    print(f"🔭 HORIZON SCAN RESULTS")
+    print(f"{'='*70}")
+    print(f"Total opportunities: {len(opps)}")
+    for lens, info in lens_results.items():
+        if isinstance(info, dict) and 'found' in info:
+            print(f"  {lens}: {info['found']} found ({info.get('fire', 0)} FIRE, {info.get('high', 0)} HIGH)")
+    print(f"New frontiers discovered: {len(frontiers)}")
+    print()
+
+    if frontiers:
+        print("🌱 NEW FRONTIERS (self-expanding search space):")
+        for f in frontiers:
+            print(f"  → {f}")
+        print()
+
+    for i, opp in enumerate(opps, 1):
+        tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
+            opp.get('tier', ''), "📝"
+        )
+        print(f"{i}. {tier_emoji} {opp.get('title', '?')} — {opp.get('weighted_total', 0)}/155")
+        print(f"   {opp.get('one_liner', '')}")
+        if opp.get('discovery_path'):
+            print(f"   💡 {opp['discovery_path'][:150]}")
+        print(f"   Sector: {opp.get('sector', 'N/A')} | Tags: {', '.join(opp.get('tags', []))}")
+        print()
+
+    print(f"{'='*70}")
+
+
 async def cmd_serendipity(args):
     """Run serendipity engine — discover opportunities outside known sectors."""
     from .scout_engine import ScoutEngine
@@ -571,6 +620,13 @@ def main():
                            choices=['daily', 'deep'],
                            help='daily = Sonnet light scan, deep = Opus full analysis')
 
+    # Horizon — unbounded 7-lens discovery
+    hor_parser = subparsers.add_parser('horizon',
+                                       help='Unbounded discovery — find next Uber/Amazon')
+    hor_parser.add_argument('--mode', type=str, default='daily',
+                           choices=['daily', 'deep'],
+                           help='daily = 3 lenses Sonnet, deep = all 7 lenses Opus')
+
     # Explore — capability-first discovery
     exp_parser = subparsers.add_parser('explore',
                                        help='Explore opportunities from founder capabilities')
@@ -643,6 +699,7 @@ def main():
         'evolve': cmd_evolve,
         'generate': cmd_generate,
         'serendipity': cmd_serendipity,
+        'horizon': cmd_horizon,
         'localize': cmd_localize,
         'explore': cmd_explore,
         'deadlines': cmd_deadlines,

@@ -248,7 +248,23 @@ class KnowledgeBase:
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
+            -- Horizon Scanner frontiers (self-expanding discovery)
+            CREATE TABLE IF NOT EXISTS horizon_frontiers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                frontier_name TEXT NOT NULL,
+                frontier_type TEXT,           -- sector, buyer_persona, technology, regulation
+                discovered_by_lens TEXT,
+                search_queries_json TEXT,
+                times_explored INTEGER DEFAULT 0,
+                opportunities_found INTEGER DEFAULT 0,
+                best_score REAL DEFAULT 0,
+                status TEXT DEFAULT 'pending', -- pending, explored, productive, exhausted
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
             -- Indexes for fast queries
+            CREATE INDEX IF NOT EXISTS idx_horizon_status ON horizon_frontiers(status);
             CREATE INDEX IF NOT EXISTS idx_opp_tier ON opportunities(tier);
             CREATE INDEX IF NOT EXISTS idx_opp_status ON opportunities(status);
             CREATE INDEX IF NOT EXISTS idx_opp_score ON opportunities(weighted_total DESC);
@@ -851,6 +867,69 @@ class KnowledgeBase:
             )
             results.append(d)
         return results
+
+    # ─── Horizon Frontiers ──────────────────────────────────
+
+    def save_frontier(self, frontier: dict) -> int:
+        """Save a newly discovered frontier. Returns row ID."""
+        cursor = self.conn.cursor()
+        # Check if frontier already exists (by name)
+        cursor.execute(
+            "SELECT id FROM horizon_frontiers WHERE frontier_name = ?",
+            (frontier['frontier_name'],)
+        )
+        if cursor.fetchone():
+            return -1  # Already exists
+        cursor.execute("""
+            INSERT INTO horizon_frontiers
+            (frontier_name, frontier_type, discovered_by_lens, search_queries_json)
+            VALUES (?, ?, ?, ?)
+        """, (
+            frontier['frontier_name'],
+            frontier.get('frontier_type', 'sector'),
+            frontier.get('discovered_by_lens', ''),
+            json.dumps(frontier.get('search_queries', []))
+        ))
+        self.conn.commit()
+        return cursor.lastrowid
+
+    def get_pending_frontiers(self, limit: int = 10) -> list:
+        """Get frontiers waiting to be explored."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT * FROM horizon_frontiers
+            WHERE status IN ('pending', 'explored')
+            ORDER BY
+                CASE status WHEN 'pending' THEN 0 ELSE 1 END,
+                created_at ASC
+            LIMIT ?
+        """, (limit,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def update_frontier_status(self, frontier_id: int, status: str,
+                                opps_found: int = 0, best_score: float = 0):
+        """Update frontier after exploration."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE horizon_frontiers SET
+                status = ?,
+                times_explored = times_explored + 1,
+                opportunities_found = opportunities_found + ?,
+                best_score = MAX(best_score, ?),
+                updated_at = datetime('now')
+            WHERE id = ?
+        """, (status, opps_found, best_score, frontier_id))
+        self.conn.commit()
+
+    def get_known_sectors(self, limit: int = 100) -> list:
+        """Get all distinct sectors from existing opportunities."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT sector FROM opportunities
+            WHERE sector IS NOT NULL AND sector != ''
+            ORDER BY sector LIMIT ?
+        """, (limit,))
+        return [row[0] for row in cursor.fetchall()]
 
     # ─── Helpers ────────────────────────────────────────────
 

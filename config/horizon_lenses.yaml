@@ -1,0 +1,96 @@
+# OpportunityScout — Horizon Scanner Lens Configuration
+# 7 unconstrained discovery lenses, each a different mental model
+# for how billion-dollar opportunities get born.
+
+lenses:
+  analogy_transfer:
+    name: "Analogy Transfer"
+    tagline: "What succeeded elsewhere that doesn't exist here yet?"
+    enabled: true
+    daily_eligible: true
+    max_loops: 15
+    description: >
+      Search for top startups in countries the founder does NOT operate in
+      (Japan, Korea, Brazil, India, Africa, Nordics). Check: does an equivalent
+      exist in UK/Turkey/UAE? This is how Yemeksepeti, Trendyol, Glovo were born.
+
+  friction_mapper:
+    name: "Friction Mapper"
+    tagline: "Where do people waste the most time/money on broken processes?"
+    enabled: true
+    daily_eligible: true
+    max_loops: 15
+    description: >
+      No sector constraint. Search for most hated business processes,
+      most expensive manual tasks, industries resistant to technology.
+      Map friction by cost. This is how Uber, Stripe, Faire were found.
+
+  convergence_detector:
+    name: "Convergence Detector"
+    tagline: "Where are 2+ macro trends colliding to create new categories?"
+    enabled: true
+    daily_eligible: true
+    max_loops: 15
+    description: >
+      Search for macro trends independently (aging, remote work, AI,
+      climate regulation, reshoring), then find intersections that create
+      entirely new business categories. Telemedicine = aging + internet.
+
+  platform_gap:
+    name: "Platform Gap Scanner"
+    tagline: "What 2-sided marketplaces are missing?"
+    enabled: true
+    daily_eligible: true
+    max_loops: 15
+    description: >
+      Search for industries where buyers and sellers still use brokers,
+      phone calls, or outdated directories. The founder's 4-country
+      presence makes him a credible marketplace builder.
+      Alibaba, Faire, Houzz were born from platform gaps.
+
+  regulation_arbitrage:
+    name: "Regulation Arbitrage"
+    tagline: "What new rules just created captive demand?"
+    enabled: true
+    daily_eligible: false
+    max_loops: 20
+    description: >
+      Search globally for new laws, upcoming regulations, compliance
+      deadlines. For each, ask: who now MUST buy something they didn't
+      before? GDPR spawned a multi-billion-dollar compliance industry.
+
+  dying_industry:
+    name: "Dying Industry Autopsy"
+    tagline: "What industries are declining, and what replaces them?"
+    enabled: true
+    daily_eligible: false
+    max_loops: 20
+    description: >
+      Search for industries in decline, bankruptcies, sectors losing
+      workers. For each: what NEED did it serve? What modern replacement
+      is emerging? Netflix (video rental), Shopify (retail), cloud (on-prem).
+
+  founder_inversion:
+    name: "Founder Asset Inversion"
+    tagline: "What if the factory/IT/4-country structure IS the product?"
+    enabled: true
+    daily_eligible: true
+    max_loops: 15
+    description: >
+      Instead of "what fits the founder," ask "who would PAY to access
+      what the founder already HAS?" Factory-as-a-Service,
+      IT-infra-as-a-Service, cross-border-compliance-as-a-Service.
+
+# Schedule
+schedule:
+  daily_lens_count: 3          # How many lenses run per daily scan
+  daily_model: "claude-sonnet-4-20250514"
+  daily_max_tokens: 4096
+  weekly_model: "claude-opus-4-20250514"
+  weekly_max_tokens: 8192
+
+# Self-expanding frontier rules
+frontiers:
+  max_new_per_run: 5           # Max new frontiers discovered per lens run
+  max_explore_attempts: 3      # Retire frontier after this many unproductive searches
+  min_score_for_productive: 100  # Frontier is "productive" if it yields score >= this

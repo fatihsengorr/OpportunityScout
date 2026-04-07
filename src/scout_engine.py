@@ -38,6 +38,7 @@ from .temporal_intelligence import TemporalIntelligence
 from .competitive_monitor import CompetitiveMonitor
 from .cross_pollinator import CrossPollinator
 from .event_bus import EventBus
+from .horizon_scanner import HorizonScanner
 
 logger = logging.getLogger("scout.engine")
 
@@ -66,6 +67,7 @@ class ScoutEngine:
         self.serendipity = SerendipityEngine(self.config, self.kb)
         self.localizer = LocalizationScanner(self.config, self.kb)
         self.explorer = CapabilityExplorer(self.config, self.kb)
+        self.horizon = HorizonScanner(self.config, self.kb)
 
         # Initialize Intelligence Mesh event bus
         self.event_bus = EventBus(self.kb)
@@ -669,6 +671,110 @@ class ScoutEngine:
             f"🎲 Serendipity weekly: {result.get('passed_filter', 0)} "
             f"opportunities passed filter"
         )
+        return result
+
+    # ─── Horizon Scanner (7-Lens Unbounded Discovery) ──────
+
+    async def run_horizon_daily(self) -> dict:
+        """Run 3 rotating horizon lenses for broad daily discovery."""
+        logger.info("🔭 Running horizon daily scan...")
+
+        result = self.horizon.daily_scan()
+        opportunities = result.get('opportunities', [])
+
+        for opp in opportunities:
+            tier = opp.get('tier', 'LOW')
+            if tier == 'FIRE':
+                await self.telegram.send_fire_alert(opp)
+            elif tier == 'HIGH':
+                await self.telegram.send_high_alert(opp)
+
+        if opportunities:
+            lens_info = result.get('lens_results', {})
+            lens_summary = ' | '.join(
+                f"{k}: {v.get('found', 0)}" for k, v in lens_info.items()
+                if isinstance(v, dict) and 'found' in v
+            )
+            frontiers = result.get('new_frontiers', [])
+            summary = (
+                f"🔭 HORIZON DAILY SCAN\n\n"
+                f"Lenses: {lens_summary}\n"
+                f"Total: {len(opportunities)} opportunities\n"
+                f"New frontiers: {len(frontiers)}\n"
+            )
+            for opp in opportunities[:5]:
+                tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
+                    opp.get('tier', ''), "📝"
+                )
+                summary += (
+                    f"\n{tier_emoji} {opp.get('title', '?')} "
+                    f"({opp.get('weighted_total', 0)}/155)"
+                )
+            if frontiers:
+                summary += f"\n\n🌱 Discovered: {', '.join(frontiers[:5])}"
+            await self.telegram.send_text(summary)
+
+        if opportunities:
+            await self.email.send_activity_report(
+                activity_type="serendipity",
+                opportunities=opportunities,
+                extra_info={
+                    "scan_type": "Horizon Daily Scan (3 Lenses)",
+                    "lenses_run": ', '.join(result.get('lens_results', {}).keys()),
+                    "new_frontiers": len(result.get('new_frontiers', [])),
+                }
+            )
+
+        logger.info(f"🔭 Horizon daily: {len(opportunities)} opportunities found")
+        return result
+
+    async def run_horizon_weekly(self) -> dict:
+        """Run ALL 7 horizon lenses with Opus for deep weekly discovery."""
+        logger.info("🔭 Running horizon weekly deep scan...")
+
+        result = self.horizon.weekly_deep_scan()
+        opportunities = result.get('opportunities', [])
+
+        for opp in opportunities:
+            tier = opp.get('tier', 'LOW')
+            if tier == 'FIRE':
+                await self.telegram.send_fire_alert(opp)
+            elif tier == 'HIGH':
+                await self.telegram.send_high_alert(opp)
+
+        if opportunities:
+            frontiers = result.get('new_frontiers', [])
+            summary = (
+                f"🔭 HORIZON WEEKLY DEEP SCAN (ALL 7 LENSES)\n\n"
+                f"Total: {len(opportunities)} opportunities\n"
+                f"New frontiers: {len(frontiers)}\n"
+            )
+            for opp in opportunities[:7]:
+                tier_emoji = {"FIRE": "🔥", "HIGH": "⭐", "MEDIUM": "📊"}.get(
+                    opp.get('tier', ''), "📝"
+                )
+                discovery = opp.get('discovery_path', '')
+                summary += (
+                    f"\n{tier_emoji} {opp.get('title', '?')} "
+                    f"({opp.get('weighted_total', 0)}/155)"
+                )
+                if discovery:
+                    summary += f"\n   💡 {discovery[:100]}"
+            if frontiers:
+                summary += f"\n\n🌱 New frontiers: {', '.join(frontiers[:10])}"
+            await self.telegram.send_text(summary)
+
+        if opportunities:
+            await self.email.send_activity_report(
+                activity_type="serendipity",
+                opportunities=opportunities,
+                extra_info={
+                    "scan_type": "Horizon Weekly Deep Scan (7 Lenses, Opus)",
+                    "new_frontiers": len(result.get('new_frontiers', [])),
+                }
+            )
+
+        logger.info(f"🔭 Horizon weekly: {len(opportunities)} opportunities found")
         return result
 
     # ─── Localization Scanner (Samwer Lens) ────────────────

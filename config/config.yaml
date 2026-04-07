@@ -69,6 +69,12 @@ serendipity:
   daily_enabled: true          # Run daily light scan
   weekly_deep_enabled: true    # Run weekly deep analysis
 
+# ─── Horizon Scanner (7-Lens Unbounded Discovery) ─────────
+horizon:
+  min_founder_fit: 4            # Lower than serendipity — we want breadth
+  daily_enabled: true
+  weekly_deep_enabled: true
+
 # ─── Rate Limiting ────────────────────────────────────────
 rate_limits:
   max_api_calls_per_hour: 50
