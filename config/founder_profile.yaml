@@ -183,3 +183,24 @@ founder:
     - pattern: "AI + manufacturing optimization / Industry 4.0"
       min_score_boost: 12
       reason: "20+ years factory operations + AI/Python skills = optimize manufacturing with AI for SME manufacturers"
+
+    # ── Manufacturing Products (NEW — 5) ──
+    - pattern: "3D printing / additive manufacturing / filament production"
+      min_score_boost: 11
+      reason: "Factory infrastructure + chemicals knowledge + Turkish cost base for filament/parts production. Market growing 20%/year."
+
+    - pattern: "Acoustic / sound insulation products (office pods, phone booths, panels)"
+      min_score_boost: 11
+      reason: "CNC + edge banding + Turkish manufacturing cost = Framery/Room competitor at 30-40% lower price. UK office pod market growing post-hybrid-work."
+
+    - pattern: "Prefab / modular structures (garden offices, smart pods, cabins)"
+      min_score_boost: 11
+      reason: "Factory capacity + cross-border logistics + UK/EU demand for prefab workspace and garden offices. Turkish production advantage."
+
+    - pattern: "Specialty industrial coatings (anti-microbial, anti-corrosion, conductive)"
+      min_score_boost: 12
+      reason: "Coil coating facility + chemicals knowledge — beyond intumescent into automotive, appliance, electronics, healthcare markets."
+
+    - pattern: "Healthcare device / medical equipment manufacturing for UK NHS"
+      min_score_boost: 10
+      reason: "Factory capacity + HIPAA training (March 2026) + UK entity + Turkish cost advantage for medical devices, furniture, equipment."
