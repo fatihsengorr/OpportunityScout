@@ -1,7 +1,7 @@
 # OpportunityScout — Source Registry
 # Each source has: name, type, url/query, tier, sector tags, signal_score (evolves over time)
 #
-# Distribution: Tier 1 = 20 (daily) | Tier 2 = 34 (weekly) | Tier 3 = 26 (monthly) | Total = 80
+# Distribution: Tier 1 = 20 (daily) | Tier 2 = 38 (weekly) | Tier 3 = 28 (monthly) | Total = 86
 # API cost target: Tier 1 ~$0.50/day (web_search + RSS/API)
 
 sources:
@@ -485,8 +485,41 @@ sources:
     signal_score: 9
     scan_frequency: weekly
 
+  # ─── Manufacturing Products & Hardware (NEW) ─────────────
+  - name: "3D Printing & Additive Manufacturing"
+    type: web_search
+    query: "3D printing additive manufacturing new applications UK Europe business 2026"
+    tier: 2
+    tags: [3d-printing, additive-manufacturing, hardware, manufacturing-innovation]
+    signal_score: 8
+    scan_frequency: weekly
+
+  - name: "Acoustic Products & Office Pods Market"
+    type: web_search
+    query: "office acoustic pods phone booth meeting room Framery Room manufacturer UK 2026"
+    tier: 2
+    tags: [acoustic-products, office-pods, framery, manufacturing-opportunity]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "Prefab Garden Offices & Modular Structures"
+    type: web_search
+    query: "prefab modular garden office home pod cabin UK Europe manufacturer 2026"
+    tier: 2
+    tags: [prefab, garden-office, modular, smart-pod, manufacturing-opportunity]
+    signal_score: 7
+    scan_frequency: weekly
+
+  - name: "Hackaday & Hardware News"
+    type: rss
+    url: "https://hackaday.com/feed/"
+    tier: 2
+    tags: [hardware, makers, embedded, prototyping, manufacturing]
+    signal_score: 6
+    scan_frequency: weekly
+
   # ═══════════════════════════════════════════════════════════
-  # TIER 3 — DEEP SIGNAL (scanned monthly) — 26 sources
+  # TIER 3 — DEEP SIGNAL (scanned monthly) — 28 sources
   # ═══════════════════════════════════════════════════════════
 
   # ─── Academic & Research ──────────────────────────────────
@@ -705,4 +738,21 @@ sources:
     tier: 3
     tags: [chemicals, turkey, ikmib, export, paint, adhesive, investment, market-report]
     signal_score: 7
+    scan_frequency: monthly
+
+  # ─── Materials & Manufacturing Deep Dive (NEW) ───────────
+  - name: "Materials Today & Composites World"
+    type: web_search
+    query: "new material innovation composite polymer coating manufacturing application 2026"
+    tier: 3
+    tags: [materials-science, composites, innovation, manufacturing]
+    signal_score: 7
+    scan_frequency: monthly
+
+  - name: "Modern Machine Shop & Metal AM"
+    type: web_search
+    query: "CNC machining metal additive manufacturing industry 4.0 factory 2026"
+    tier: 3
+    tags: [machining, cnc, metal-am, manufacturing, industry-4]
+    signal_score: 6
     scan_frequency: monthly
