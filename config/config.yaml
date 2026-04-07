@@ -14,7 +14,7 @@ telegram:
   bot_token: "${TELEGRAM_BOT_TOKEN}"
   chat_id: "${TELEGRAM_CHAT_ID}"
   # Alert thresholds
-  instant_alert_threshold: 150  # Score >= this triggers instant message
+  instant_alert_threshold: 125  # Score >= this triggers instant message
   daily_digest_time: "08:00"    # UTC time for daily digest
   weekly_report_day: "monday"
   weekly_report_time: "09:00"
@@ -45,7 +45,8 @@ schedule:
 # These evolve over time via the self-improvement loop
 scoring:
   weights:
-    founder_fit: 3.0
+    # NOTE: founder_fit is a MULTIPLIER, not an additive weight.
+    # Do not add founder_fit here. Max base = 155 × (founder_fit/10).
     ai_unlock: 2.5
     time_to_revenue: 2.5
     capital_efficiency: 2.0
@@ -55,12 +56,12 @@ scoring:
     geographic_leverage: 1.5
     competition_gap: 1.0
     simplicity: 1.0
-  
+
   # Tier thresholds (weighted total)
   tiers:
-    fire: 150
-    high: 120
-    medium: 90
+    fire: 125      # 80% of max — genuinely exceptional
+    high: 100      # 65% — strong opportunities
+    medium: 75     # 48% — worth evaluating
 
 # ─── Serendipity Engine ───────────────────────────────────
 serendipity:

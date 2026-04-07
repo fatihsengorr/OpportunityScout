@@ -31,9 +31,9 @@ DEFAULT_WEIGHTS = {
 }
 
 DEFAULT_TIERS = {
-    'fire': 120,
-    'high': 95,
-    'medium': 70
+    'fire': 125,
+    'high': 100,
+    'medium': 75
 }
 
 # Maximum possible score: 10 * sum(weights) = 10 * 15.5 = 155, × 1.0 founder_fit = 155
@@ -109,11 +109,11 @@ def determine_tier(weighted_total: float, config: dict = None) -> str:
     else:
         thresholds = DEFAULT_TIERS
 
-    if weighted_total >= thresholds.get('fire', 150):
+    if weighted_total >= thresholds.get('fire', 125):
         return 'FIRE'
-    elif weighted_total >= thresholds.get('high', 120):
+    elif weighted_total >= thresholds.get('high', 100):
         return 'HIGH'
-    elif weighted_total >= thresholds.get('medium', 90):
+    elif weighted_total >= thresholds.get('medium', 75):
         return 'MEDIUM'
     return 'LOW'
 

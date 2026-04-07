@@ -37,7 +37,7 @@ class TelegramNotifier:
         tg_config = config.get('telegram', {})
         self.bot_token = tg_config.get('bot_token') or os.environ.get('TELEGRAM_BOT_TOKEN', '')
         self.chat_id = tg_config.get('chat_id') or os.environ.get('TELEGRAM_CHAT_ID', '')
-        self.alert_threshold = tg_config.get('instant_alert_threshold', 120)
+        self.alert_threshold = tg_config.get('instant_alert_threshold', 125)
 
         if HAS_TELEGRAM and self.bot_token:
             self.bot = Bot(token=self.bot_token)

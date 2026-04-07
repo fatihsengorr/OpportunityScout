@@ -712,8 +712,8 @@ Return results in this EXACT JSON structure:
         scoring_prompt = (
             f"Score this business model on EXACTLY these 10 dimensions. "
             f"Use EXACTLY these JSON keys — no renaming, no extras.\n\n"
-            f"DIMENSIONS (key → weight → what to evaluate):\n"
-            f"1. founder_fit (×3.0): Does it use the operator's specific skills/assets?\n"
+            f"DIMENSIONS (key → what to evaluate):\n"
+            f"1. founder_fit (MULTIPLIER, not additive): How well does this match the operator's specific skills/assets? Score 1-10. The final total will be multiplied by (score/10).\n"
             f"2. ai_unlock (×2.5): Does AI fundamentally enable this or just help?\n"
             f"3. time_to_revenue (×2.5): How quickly can this generate revenue?\n"
             f"4. capital_efficiency (×2.0): How little capital is needed to start?\n"
