@@ -234,8 +234,8 @@ RESEARCH PROCESS:
    - "YC alumni from {focus_countries[0]}"
 
 2. For EACH interesting company, check:
-   - "{company_name} UK equivalent alternative"
-   - "{company_name} Turkey equivalent"
+   - "[company name] UK equivalent alternative"
+   - "[company name] Turkey equivalent"
    - Is there a gap? Is the market big enough?
 
 3. Search for the fastest-growing startups in {focus_countries[1]} and {focus_countries[2]}.

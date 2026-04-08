@@ -85,8 +85,13 @@ class CapabilityExplorer:
         # Get capability details from map
         cap_data = self._capability_map.get('capabilities', {}).get(capability, {})
         core_skills = cap_data.get('core_skills', [])
-        industry_data = cap_data.get('adjacent_industries', {}).get(industry, {})
-        industry_desc = industry_data.get('description', industry) if isinstance(industry_data, dict) else industry
+        # adjacent_industries is a list of dicts: [{name: {description, explored}}, ...]
+        industry_desc = industry
+        for item in cap_data.get('adjacent_industries', []):
+            if isinstance(item, dict) and industry in item:
+                data = item[industry]
+                industry_desc = data.get('description', industry) if isinstance(data, dict) else industry
+                break
 
         # Build and execute the exploration prompt
         prompt = self._build_exploration_prompt(
@@ -267,9 +272,21 @@ Return as JSON:
     def _select_least_explored_industry(self, capability: str) -> str:
         """Pick the least explored adjacent industry for a capability."""
         cap_data = self._capability_map.get('capabilities', {}).get(capability, {})
-        industries = cap_data.get('adjacent_industries', {})
+        industries_raw = cap_data.get('adjacent_industries', [])
 
-        if not industries:
+        if not industries_raw:
+            return None
+
+        # Extract industry names from YAML structure
+        # Format is a list of dicts: [{name: {description:..., explored:...}}, ...]
+        industry_names = []
+        for item in industries_raw:
+            if isinstance(item, dict):
+                industry_names.extend(item.keys())
+            elif isinstance(item, str):
+                industry_names.append(item)
+
+        if not industry_names:
             return None
 
         # Check which are unexplored
@@ -279,16 +296,12 @@ Return as JSON:
             explored_industries.add(h.get('industry', ''))
 
         # Prefer unexplored
-        unexplored = [i for i in industries if i not in explored_industries]
+        unexplored = [i for i in industry_names if i not in explored_industries]
         if unexplored:
             return unexplored[0]
 
         # All explored — pick oldest explored
-        if explored_industries:
-            # Return the one explored longest ago
-            return list(industries.keys())[0]
-
-        return list(industries.keys())[0] if industries else None
+        return industry_names[0]
 
     # ═══════════════════════════════════════════════════════════
     # PROMPT BUILDING
