@@ -246,7 +246,7 @@ ALREADY KNOWN (avoid repeats):
 Search the web for at least 3 targeted queries based on these signals.
 
 CRITICAL: Your ENTIRE response must be ONLY a valid JSON object. No text before or after.
-Format: {"opportunities": [...], "signals": [...], "cross_pollinations": [...]}
+Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}}
 Include "action_by" date (YYYY-MM-DD or null) for time-sensitive opportunities.
 
 Score each opportunity using the 10-dimension model. Only include founder_fit >= 5."""
@@ -283,7 +283,7 @@ ALREADY KNOWN (avoid repeats):
 Search for at least 4 different breaking signal queries.
 
 CRITICAL: Your ENTIRE response must be ONLY a valid JSON object. No text before or after.
-Format: {"opportunities": [...], "signals": [...], "cross_pollinations": [...]}
+Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}}
 Include "action_by" date (YYYY-MM-DD or null) for time-sensitive opportunities.
 
 Score each opportunity. Only include founder_fit >= 5."""
@@ -341,7 +341,7 @@ Each opportunity MUST include a "discovery_path" field explaining: hot sector �
 Score each. Only include founder_fit >= 5.
 
 CRITICAL: Your ENTIRE response must be ONLY a valid JSON object. No text before or after.
-Format: {"opportunities": [...], "signals": [...], "cross_pollinations": [...]}"""
+Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}}"""
 
         return self._execute_search(prompt, model, max_tokens, max_loops)
 
@@ -405,7 +405,7 @@ Each opportunity MUST have "discovery_path" explaining: buyer → spend category
 Score each. Only include founder_fit >= 5.
 
 CRITICAL: Your ENTIRE response must be ONLY a valid JSON object. No text before or after.
-Format: {"opportunities": [...], "signals": [...], "cross_pollinations": [...]}"""
+Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}}"""
 
         return self._execute_search(prompt, model, max_tokens, max_loops)
 
@@ -467,7 +467,7 @@ Each opportunity MUST have "discovery_path" explaining: frontier tech → capabi
 Score each. Only include founder_fit >= 5. Mark construction max 1.
 
 CRITICAL: Your ENTIRE response must be ONLY a valid JSON object. No text before or after.
-Format: {"opportunities": [...], "signals": [...], "cross_pollinations": [...]}"""
+Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}}"""
 
         return self._execute_search(prompt, model, max_tokens, max_loops)
 

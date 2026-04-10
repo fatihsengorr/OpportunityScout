@@ -293,6 +293,25 @@ class KnowledgeBase:
             cursor.execute("ALTER TABLE opportunities ADD COLUMN action_by TEXT")
             self.conn.commit()
 
+        # Deduplicate regulatory_deadlines and add unique index
+        try:
+            cursor.execute("""
+                DELETE FROM regulatory_deadlines
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM regulatory_deadlines
+                    GROUP BY name, deadline_date
+                )
+            """)
+            if cursor.rowcount > 0:
+                logger.info(f"🗑️ Removed {cursor.rowcount} duplicate deadline rows")
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_deadlines_unique
+                ON regulatory_deadlines(name, deadline_date)
+            """)
+            self.conn.commit()
+        except Exception:
+            pass  # Index already exists or table doesn't exist yet
+
     # ─── Opportunity CRUD ───────────────────────────────────
 
     def save_opportunity(self, opp: dict) -> str:
@@ -718,13 +737,19 @@ class KnowledgeBase:
                       capabilities: list = None,
                       impact: str = None,
                       search_queries: list = None):
-        """Save or update a regulatory deadline."""
+        """Save or update a regulatory deadline (upsert by name+date)."""
         cursor = self.conn.cursor()
         cursor.execute("""
-            INSERT OR REPLACE INTO regulatory_deadlines
+            INSERT INTO regulatory_deadlines
             (name, deadline_date, jurisdiction, capabilities_json,
              impact, search_queries_json)
             VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(name, deadline_date) DO UPDATE SET
+                jurisdiction = excluded.jurisdiction,
+                capabilities_json = excluded.capabilities_json,
+                impact = excluded.impact,
+                search_queries_json = excluded.search_queries_json,
+                updated_at = datetime('now')
         """, (name, deadline_date, jurisdiction,
               json.dumps(capabilities or []),
               impact,

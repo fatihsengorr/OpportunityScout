@@ -317,6 +317,9 @@ class OpenBrainClient:
 
     async def _ingest(self, payload: dict) -> dict | None:
         """Send data to Open Brain /ingest endpoint."""
+        # Circuit breaker: stop after 3 consecutive failures
+        if getattr(self, '_ingest_failures', 0) >= 3:
+            return None
         try:
             async with httpx.AsyncClient(timeout=30) as client:
                 resp = await client.post(
@@ -328,6 +331,7 @@ class OpenBrainClient:
                     },
                 )
                 if resp.status_code == 200:
+                    self._ingest_failures = 0
                     data = resp.json()
                     logger.info(
                         f"✅ Brain ingest OK: {payload.get('path')} "
@@ -335,9 +339,12 @@ class OpenBrainClient:
                     )
                     return data
                 else:
+                    self._ingest_failures = getattr(self, '_ingest_failures', 0) + 1
                     logger.error(
                         f"❌ Brain ingest failed [{resp.status_code}]: {resp.text[:200]}"
                     )
+                    if self._ingest_failures >= 3:
+                        logger.warning("⚡ Brain ingest circuit breaker tripped — skipping remaining ingests this cycle")
                     return None
         except Exception as e:
             logger.error(f"❌ Brain ingest error: {e}")
