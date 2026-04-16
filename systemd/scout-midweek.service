@@ -1,0 +1,17 @@
+[Unit]
+Description=OpportunityScout Mid-week Exploration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+ExecStart=/bin/bash /opt/opportunity-scout/scripts/run-midweek.sh
+TimeoutStartSec=1800
+MemoryMax=512M
+Nice=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-midweek

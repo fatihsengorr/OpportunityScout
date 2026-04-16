@@ -1,0 +1,12 @@
+[Unit]
+Description=OpportunityScout Database Backup
+
+[Service]
+Type=oneshot
+User=ubuntu
+ExecStart=/bin/bash -c "cp /opt/opportunity-scout/data/opportunity_scout.db /opt/opportunity-scout/data/backup_$(date +%%Y%%m%%d).db"
+ExecStartPost=/bin/bash -c "find /opt/opportunity-scout/data/ -name 'backup_*.db' -mtime +30 -delete"
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-backup

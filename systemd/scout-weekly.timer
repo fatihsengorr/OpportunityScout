@@ -1,0 +1,10 @@
+[Unit]
+Description=OpportunityScout Weekly Deep Scan Timer
+
+[Timer]
+OnCalendar=Mon *-*-* 03:00:00 UTC
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

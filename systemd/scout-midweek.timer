@@ -1,0 +1,10 @@
+[Unit]
+Description=OpportunityScout Mid-week Exploration Timer
+
+[Timer]
+OnCalendar=Thu *-*-* 06:00:00 UTC
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target

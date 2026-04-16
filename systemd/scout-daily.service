@@ -1,0 +1,18 @@
+[Unit]
+Description=OpportunityScout Daily Scan
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+ExecStart=/bin/bash /opt/opportunity-scout/scripts/run-daily.sh
+TimeoutStartSec=1800
+MemoryMax=512M
+Nice=10
+
+# Logging goes to journalctl automatically
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-daily

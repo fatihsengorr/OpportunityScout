@@ -1,0 +1,18 @@
+[Unit]
+Description=OpportunityScout Weekly Deep Scan
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+ExecStart=/bin/bash /opt/opportunity-scout/scripts/run-weekly.sh
+# Weekly can take 2+ hours with Opus deep analysis
+TimeoutStartSec=10800
+MemoryMax=1G
+Nice=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-weekly
