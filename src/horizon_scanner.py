@@ -28,7 +28,7 @@ import re
 import yaml
 from datetime import datetime
 from pathlib import Path
-from anthropic import Anthropic
+from .llm_router import LLMRouter
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.horizon")
@@ -53,10 +53,7 @@ class HorizonScanner:
     def __init__(self, config: dict, knowledge_base):
         self.config = config
         self.kb = knowledge_base
-        self.client = Anthropic(
-            api_key=config.get('claude', {}).get('api_key')
-            or os.environ.get('ANTHROPIC_API_KEY')
-        )
+        self.llm = LLMRouter(config)
         self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
         self._lens_config = self._load_lens_config()
@@ -72,7 +69,7 @@ class HorizonScanner:
         Returns dict with all opportunities found.
         """
         schedule = self._lens_config.get('schedule', {})
-        model = schedule.get('daily_model', 'claude-sonnet-4-20250514')
+        model = self.llm.get_model('daily')
         max_tokens = schedule.get('daily_max_tokens', 4096)
         lens_count = schedule.get('daily_lens_count', 3)
 
@@ -93,7 +90,7 @@ class HorizonScanner:
         Run ALL 7 lenses with Opus for deep weekly discovery.
         """
         schedule = self._lens_config.get('schedule', {})
-        model = schedule.get('weekly_model', 'claude-opus-4-20250514')
+        model = self.llm.get_model('weekly')
         max_tokens = schedule.get('weekly_max_tokens', 8192)
 
         enabled = [name for name in self.LENS_NAMES
@@ -639,7 +636,7 @@ Format: {{"opportunities": [...], "signals": [...], "new_frontiers": [...]}}"""
         """Execute a multi-turn web search conversation with Claude."""
         try:
             messages = [{"role": "user", "content": prompt}]
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=model,
                 max_tokens=max_tokens,
                 system=self._system_prompt,
@@ -664,7 +661,7 @@ Format: {{"opportunities": [...], "signals": [...], "new_frontiers": [...]}}"""
 
                 messages.append({"role": "user", "content": tool_results})
 
-                response = self.client.messages.create(
+                response = self.llm.create(
                     model=model,
                     max_tokens=max_tokens,
                     system=self._system_prompt,

@@ -16,13 +16,12 @@ Performance is tracked per lens via the strategy_performance table.
 
 import json
 import logging
-import os
 import time
 import uuid
 from datetime import datetime, timedelta
 from src.scoring_utils import calculate_weighted_total, determine_tier
 from pathlib import Path
-from anthropic import Anthropic
+from .llm_router import LLMRouter
 
 logger = logging.getLogger("scout.generator")
 
@@ -41,14 +40,8 @@ class BusinessModelGenerator:
     def __init__(self, config: dict, knowledge_base):
         self.config = config
         self.kb = knowledge_base
-        self.client = Anthropic(
-            api_key=config.get('claude', {}).get('api_key')
-            or os.environ.get('ANTHROPIC_API_KEY')
-        )
-        # Always use Opus for creative synthesis — this is the highest-value task
-        self.model = config.get('claude', {}).get(
-            'model_deep_dive', 'claude-opus-4-20250514'
-        )
+        self.llm = LLMRouter(config)
+        self.model = self.llm.get_model('weekly')
         self.max_tokens = 8192
         self._founder_profile = self._load_founder_profile()
         self._system_prompt = self._load_system_prompt()
@@ -425,7 +418,7 @@ The best opportunity is where buyer pain is 9/10 but nobody has built a good sol
         """Execute a generation prompt with Opus + web search multi-turn loop."""
         try:
             messages = [{"role": "user", "content": prompt}]
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
                 tools=[{"type": "web_search_20250305", "name": "web_search"}],
@@ -448,7 +441,7 @@ The best opportunity is where buyer pain is 9/10 but nobody has built a good sol
                         })
 
                 messages.append({"role": "user", "content": tool_results})
-                response = self.client.messages.create(
+                response = self.llm.create(
                     model=self.model,
                     max_tokens=self.max_tokens,
                     tools=[{"type": "web_search_20250305", "name": "web_search"}],
@@ -749,10 +742,8 @@ Return results in this EXACT JSON structure:
         )
 
         try:
-            scorer_model = self.config.get('claude', {}).get(
-                'model', 'claude-sonnet-4-20250514'
-            )
-            response = self.client.messages.create(
+            scorer_model = self.llm.get_model('scoring')
+            response = self.llm.create(
                 model=scorer_model,
                 max_tokens=2048,
                 system=self._system_prompt,
@@ -804,11 +795,9 @@ Return results in this EXACT JSON structure:
         )
 
         try:
-            validation_model = self.config.get('claude', {}).get(
-                'model', 'claude-sonnet-4-20250514'
-            )
+            validation_model = self.llm.get_model('scoring')
             messages = [{"role": "user", "content": validation_query}]
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=validation_model,
                 max_tokens=2048,
                 tools=[{
@@ -835,7 +824,7 @@ Return results in this EXACT JSON structure:
                         })
 
                 messages.append({"role": "user", "content": tool_results})
-                response = self.client.messages.create(
+                response = self.llm.create(
                     model=validation_model,
                     max_tokens=2048,
                     tools=[{

@@ -14,18 +14,13 @@ Features:
 
 import json
 import logging
-import os
 import time
 import uuid
 from datetime import datetime
 
 logger = logging.getLogger("scout.competitors")
 
-try:
-    import anthropic
-    HAS_ANTHROPIC = True
-except ImportError:
-    HAS_ANTHROPIC = False
+from .llm_router import LLMRouter
 
 
 class CompetitiveMonitor:
@@ -38,22 +33,16 @@ class CompetitiveMonitor:
         self.kb = knowledge_base
         self.event_bus = event_bus
 
-        claude_config = config.get('claude', {})
-        self.api_key = claude_config.get('api_key') or os.environ.get('ANTHROPIC_API_KEY', '')
-        self.model = claude_config.get('model', 'claude-sonnet-4-20250514')
-
-        if HAS_ANTHROPIC and self.api_key:
-            self.client = anthropic.Anthropic(api_key=self.api_key)
-        else:
-            self.client = None
+        self.llm = LLMRouter(config)
+        self.model = self.llm.get_model('daily')
 
     def identify_competitors(self, opportunity: dict) -> list:
         """
         For a given opportunity, identify 3-5 companies in adjacent space.
         Uses Claude + web search to find real competitors.
         """
-        if not self.client:
-            logger.error("Anthropic client not available")
+        if not self.llm:
+            logger.error("LLM router not available")
             return []
 
         title = opportunity.get('title', '')
@@ -90,8 +79,8 @@ class CompetitiveMonitor:
         Check all tracked competitors for updates.
         Returns list of intelligence updates.
         """
-        if not self.client:
-            logger.error("Anthropic client not available")
+        if not self.llm:
+            logger.error("LLM router not available")
             return []
 
         try:
@@ -249,13 +238,13 @@ class CompetitiveMonitor:
 
     def _execute_search(self, prompt: str):
         """Execute a Claude API call with web search tool."""
-        if not self.client:
+        if not self.llm:
             return None
 
         messages = [{"role": "user", "content": prompt}]
 
         try:
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model,
                 max_tokens=4096,
                 tools=[{"type": "web_search_20250305"}],
@@ -279,7 +268,7 @@ class CompetitiveMonitor:
                 messages.append({"role": "assistant", "content": response.content})
                 messages.append({"role": "user", "content": tool_results})
 
-                response = self.client.messages.create(
+                response = self.llm.create(
                     model=self.model,
                     max_tokens=4096,
                     tools=[{"type": "web_search_20250305"}],

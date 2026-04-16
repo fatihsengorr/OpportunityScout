@@ -18,13 +18,12 @@ Exploration weights prevent construction bias structurally:
 
 import json
 import logging
-import os
 import time
 import uuid
 import yaml
 from datetime import datetime
 from pathlib import Path
-from anthropic import Anthropic
+from .llm_router import LLMRouter
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.capability_explorer")
@@ -43,13 +42,8 @@ class CapabilityExplorer:
     def __init__(self, config: dict, knowledge_base):
         self.config = config
         self.kb = knowledge_base
-        self.client = Anthropic(
-            api_key=config.get('claude', {}).get('api_key')
-            or os.environ.get('ANTHROPIC_API_KEY')
-        )
-        self.model = config.get('claude', {}).get(
-            'model', 'claude-sonnet-4-20250514'
-        )
+        self.llm = LLMRouter(config)
+        self.model = self.llm.get_model('daily')
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
         self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
         self._capability_map = self._load_capability_map()
@@ -234,7 +228,7 @@ Return as JSON:
 ```"""
 
         try:
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model,
                 max_tokens=4096,
                 tools=[{"type": "web_search_20250305", "name": "web_search"}],
@@ -408,7 +402,7 @@ If no opportunities found, return:
     def _execute_search(self, prompt: str) -> dict:
         """Execute multi-turn web search."""
         messages = [{"role": "user", "content": prompt}]
-        response = self.client.messages.create(
+        response = self.llm.create(
             model=self.model,
             max_tokens=4096,
             system=self._system_prompt,
@@ -432,7 +426,7 @@ If no opportunities found, return:
                     })
 
             messages.append({"role": "user", "content": tool_results})
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model,
                 max_tokens=4096,
                 system=self._system_prompt,

@@ -19,18 +19,13 @@ Types of connections sought:
 
 import json
 import logging
-import os
 import time
 import uuid
 from datetime import datetime
 
 logger = logging.getLogger("scout.crosspoll")
 
-try:
-    import anthropic
-    HAS_ANTHROPIC = True
-except ImportError:
-    HAS_ANTHROPIC = False
+from .llm_router import LLMRouter
 
 
 class CrossPollinator:
@@ -44,15 +39,9 @@ class CrossPollinator:
         self.kb = knowledge_base
         self.event_bus = event_bus
 
-        claude_config = config.get('claude', {})
-        self.api_key = claude_config.get('api_key') or os.environ.get('ANTHROPIC_API_KEY', '')
-        self.model_opus = claude_config.get('model_deep_dive', 'claude-opus-4-20250514')
-        self.model_sonnet = claude_config.get('model', 'claude-sonnet-4-20250514')
-
-        if HAS_ANTHROPIC and self.api_key:
-            self.client = anthropic.Anthropic(api_key=self.api_key)
-        else:
-            self.client = None
+        self.llm = LLMRouter(config)
+        self.model_opus = self.llm.get_model('weekly')
+        self.model_sonnet = self.llm.get_model('daily')
 
     def run_cross_pollination(self) -> dict:
         """
@@ -62,8 +51,8 @@ class CrossPollinator:
         3. Search for hybrid opportunities
         4. Score and store results
         """
-        if not self.client:
-            logger.error("Anthropic client not available for cross-pollination")
+        if not self.llm:
+            logger.error("LLM router not available for cross-pollination")
             return {'connections': [], 'hybrid_opportunities': []}
 
         logger.info("🔗 Starting cross-pollination cycle...")
@@ -253,14 +242,14 @@ class CrossPollinator:
 
     def _call_claude(self, prompt: str, model: str = None, max_tokens: int = 4096):
         """Execute Claude API call with web search, return parsed result."""
-        if not self.client:
+        if not self.llm:
             return None
 
         model = model or self.model_sonnet
         messages = [{"role": "user", "content": prompt}]
 
         try:
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=model,
                 max_tokens=max_tokens,
                 tools=[{"type": "web_search_20250305"}],
@@ -283,7 +272,7 @@ class CrossPollinator:
                 messages.append({"role": "assistant", "content": response.content})
                 messages.append({"role": "user", "content": tool_results})
 
-                response = self.client.messages.create(
+                response = self.llm.create(
                     model=model,
                     max_tokens=max_tokens,
                     tools=[{"type": "web_search_20250305"}],

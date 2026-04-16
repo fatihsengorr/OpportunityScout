@@ -8,11 +8,10 @@ This is the analytical brain that converts noise into signal.
 
 import json
 import logging
-import os
 import uuid
 from datetime import datetime
 from pathlib import Path
-from anthropic import Anthropic
+from .llm_router import LLMRouter
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.scorer")
@@ -28,11 +27,9 @@ class OpportunityScorer:
 
     def __init__(self, config: dict):
         self.config = config
-        self.client = Anthropic(
-            api_key=config.get('claude', {}).get('api_key') or os.environ.get('ANTHROPIC_API_KEY')
-        )
-        self.model = config.get('claude', {}).get('model', 'claude-sonnet-4-20250514')
-        self.model_deep = config.get('claude', {}).get('model_deep_dive', 'claude-opus-4-20250514')
+        self.llm = LLMRouter(config)
+        self.model = self.llm.get_model('scoring')
+        self.model_deep = self.llm.get_model('weekly')
         self.max_tokens = config.get('claude', {}).get('max_tokens', 4096)
         self.max_tokens_deep = config.get('claude', {}).get('max_tokens_deep_dive', 8192)
         self._system_prompt = self._load_system_prompt()
@@ -103,7 +100,7 @@ class OpportunityScorer:
         This is the primary way the scout gathers real-time intelligence.
         """
         try:
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
                 system=self._system_prompt,
@@ -147,7 +144,7 @@ class OpportunityScorer:
             context = f"\n\nEXISTING ANALYSIS:\n{json.dumps(existing_data, indent=2)}"
 
         try:
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model_deep,  # Use Opus for deep dives
                 max_tokens=self.max_tokens_deep,
                 system=self._system_prompt,
@@ -195,7 +192,7 @@ class OpportunityScorer:
         Used for the /score command.
         """
         try:
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
                 system=self._system_prompt,
@@ -249,7 +246,7 @@ class OpportunityScorer:
                 f"dimensions):\n\n{extra_context}\n\n"
             )
 
-        response = self.client.messages.create(
+        response = self.llm.create(
             model=self.model,
             max_tokens=self.max_tokens,
             system=self._system_prompt,

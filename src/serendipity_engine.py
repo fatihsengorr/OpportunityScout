@@ -18,13 +18,12 @@ Two modes:
 
 import json
 import logging
-import os
 import time
 import uuid
 import yaml
 from datetime import datetime
 from pathlib import Path
-from anthropic import Anthropic
+from .llm_router import LLMRouter
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.serendipity")
@@ -51,16 +50,9 @@ class SerendipityEngine:
     def __init__(self, config: dict, knowledge_base):
         self.config = config
         self.kb = knowledge_base
-        self.client = Anthropic(
-            api_key=config.get('claude', {}).get('api_key')
-            or os.environ.get('ANTHROPIC_API_KEY')
-        )
-        self.model_light = config.get('claude', {}).get(
-            'model', 'claude-sonnet-4-20250514'
-        )
-        self.model_deep = config.get('claude', {}).get(
-            'model_deep_dive', 'claude-opus-4-20250514'
-        )
+        self.llm = LLMRouter(config)
+        self.model_light = self.llm.get_model('daily')
+        self.model_deep = self.llm.get_model('weekly')
         self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
         self._min_founder_fit = config.get('serendipity', {}).get(
@@ -480,7 +472,7 @@ Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}
         """Execute a multi-turn web search conversation with Claude."""
         try:
             messages = [{"role": "user", "content": prompt}]
-            response = self.client.messages.create(
+            response = self.llm.create(
                 model=model,
                 max_tokens=max_tokens,
                 system=self._system_prompt,
@@ -505,7 +497,7 @@ Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}
 
                 messages.append({"role": "user", "content": tool_results})
 
-                response = self.client.messages.create(
+                response = self.llm.create(
                     model=model,
                     max_tokens=max_tokens,
                     system=self._system_prompt,

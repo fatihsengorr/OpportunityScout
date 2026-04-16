@@ -1,13 +1,25 @@
 # OpportunityScout Configuration
 # Copy to config.yaml and fill in your values
 
-# ─── Claude API ───────────────────────────────────────────
+# ─── LLM Providers ────────────────────────────────────────
 claude:
   api_key: "${ANTHROPIC_API_KEY}"
-  model: "claude-sonnet-4-20250514"        # Sonnet for routine scans (cost-effective)
-  model_deep_dive: "claude-opus-4-20250514" # Opus for deep dives (maximum intelligence)
+  model: "claude-sonnet-4-20250514"
+  model_deep_dive: "claude-sonnet-4-20250514"  # Was Opus — Sonnet is 5x cheaper and sufficient
   max_tokens: 4096
   max_tokens_deep_dive: 8192
+
+gemini:
+  api_key: "${GEMINI_API_KEY}"
+
+# ─── Model Routing (which model for which task) ──────────
+# daily: Gemini Flash ($0.15/M) — web search + opportunity discovery
+# weekly: Claude Sonnet ($3/M) — deep analysis + creative reasoning
+# scoring: Claude Sonnet — reliable structured output for scoring
+models:
+  daily: "gemini-2.5-flash"
+  weekly: "claude-sonnet-4-20250514"
+  scoring: "claude-sonnet-4-20250514"
 
 # ─── Telegram ─────────────────────────────────────────────
 telegram:
