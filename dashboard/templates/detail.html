@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}{{ opp.title }} · OpportunityScout{% endblock %}
+{% block content %}
+
+<div class="detail-header">
+  <a href="/" class="back">← Back</a>
+  <div>
+    <h1>{{ tier_emoji.get(opp.tier, '📝') }} {{ opp.title }}</h1>
+    <p class="detail-id"><code>{{ opp.id }}</code>
+      · Score <strong>{{ "%.0f"|format(opp.weighted_total or 0) }}/155</strong>
+      · Tier <strong>{{ opp.tier or '?' }}</strong>
+      · Stage {{ stage_emoji.get(opp.pipeline_stage or 'discovered', '🔎') }} <strong>{{ opp.pipeline_stage or 'discovered' }}</strong>
+      {% if opp.score_disputed %}· <span class="disputed-badge">⚠️ disputed</span>{% endif %}
+    </p>
+  </div>
+</div>
+
+{% if opp.one_liner %}<blockquote>{{ opp.one_liner }}</blockquote>{% endif %}
+
+<div class="detail-grid">
+  <section>
+    <h2>Why now</h2>
+    <p>{{ opp.why_now or '—' }}</p>
+  </section>
+  <section>
+    <h2>First move</h2>
+    <p>{{ opp.first_move or '—' }}</p>
+  </section>
+  <section>
+    <h2>Revenue path</h2>
+    <p>{{ opp.revenue_path or '—' }}</p>
+  </section>
+  <section>
+    <h2>Risks</h2>
+    {% if opp.risks %}<ul>{% for r in opp.risks %}<li>{{ r }}</li>{% endfor %}</ul>{% else %}<p>—</p>{% endif %}
+  </section>
+</div>
+
+{% if opp.scores %}
+<h2>Scoring Breakdown</h2>
+<div class="scores">
+  {% for dim, score in opp.scores.items() %}
+  <div class="score-item">
+    <span class="dim">{{ dim }}</span>
+    <div class="bar"><div class="bar-fill" style="width: {{ score*10 }}%"></div></div>
+    <span class="score-value">{{ score }}/10</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if opp.consensus %}
+<h2>🧮 Consensus</h2>
+<div class="consensus-box">
+  {% set c = opp.consensus %}
+  <p><strong>Primary ({{ c.primary.model }}):</strong> {{ c.primary.score }}/155 ({{ c.primary.tier }})</p>
+  {% if c.secondary %}
+  <p><strong>Secondary ({{ c.secondary.model }}):</strong> {{ c.secondary.score }}/155 ({{ c.secondary.tier }})</p>
+  <p><strong>Median:</strong> {{ c.median_score }} · <strong>Divergence:</strong> {{ c.divergence }} · <strong>Verdict:</strong> {{ c.verdict }}</p>
+  {% if c.secondary.reasoning %}<p class="reasoning">{{ c.secondary.reasoning }}</p>{% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+{% if opp.validation %}
+<h2>🔎 Claim Validation</h2>
+<div class="validation-box">
+  {% set v = opp.validation %}
+  <p><strong>Status:</strong> {{ v.status }} · <strong>Confidence:</strong> {{ "%.0f"|format(v.confidence*100) }}%</p>
+  {% for c in v.claims %}
+  <div class="claim-item">
+    <strong>{{ c.claim }}</strong>
+    <em>({{ c.status }})</em>
+    <p>{{ c.evidence or '' }}</p>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if opp.finance %}
+<h2>💰 Financial Model</h2>
+<div class="finance-box">
+  {% set f = opp.finance %}
+  {% set ue = f.unit_economics or {} %}
+  {% set rel = (f.projections or {}).get('realistic', {}) %}
+  <p><strong>Verdict:</strong> {{ f.verdict or '?' }} · <strong>Revenue model:</strong> {{ f.revenue_model or '?' }} · <strong>Target:</strong> {{ f.target_segment or '?' }}</p>
+  <div class="finance-grid">
+    <div><span>ARPU</span><strong>£{{ ue.arpu_gbp or 0 }}</strong></div>
+    <div><span>CAC</span><strong>£{{ ue.cac_gbp or 0 }}</strong></div>
+    <div><span>LTV</span><strong>£{{ ue.ltv_gbp or 0 }}</strong></div>
+    <div><span>LTV/CAC</span><strong>{{ ue.ltv_cac_ratio or 0 }}x</strong></div>
+    <div><span>Payback</span><strong>{{ ue.payback_months or 0 }} mo</strong></div>
+    <div><span>Break-even</span><strong>{{ rel.break_even_month or '—' }}</strong></div>
+    <div><span>Capital</span><strong>£{{ "{:,}".format((rel.capital_required_gbp or 0)|int) }}</strong></div>
+    <div><span>MRR @ Y1</span><strong>£{{ "{:,}".format((rel.final_mrr_gbp or 0)|int) }}</strong></div>
+  </div>
+</div>
+{% endif %}
+
+{% if opp.action_kit %}
+<h2>🎬 Action Kit</h2>
+<div class="actionkit-box">
+  {% set ak = opp.action_kit %}
+  {% if ak.plan_30day %}
+  <h3>30-Day Plan</h3>
+  {% for week in ak.plan_30day %}
+  <div class="week">
+    <h4>Week {{ week.week }}: {{ week.theme }}</h4>
+    <ul>{% for task in week.tasks %}<li>{{ task }}</li>{% endfor %}</ul>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if ak.cold_outreach %}
+  <h3>Cold Outreach</h3>
+  <div class="outreach">
+    <p><strong>Target:</strong> {{ ak.cold_outreach.target_persona }} · <strong>Channel:</strong> {{ ak.cold_outreach.channel }}</p>
+    <p><strong>Subject:</strong> {{ ak.cold_outreach.subject }}</p>
+    <pre>{{ ak.cold_outreach.body }}</pre>
+  </div>
+  {% endif %}
+
+  {% if ak.landing_copy %}
+  <h3>Landing Copy</h3>
+  <div class="landing-preview">
+    <h4>{{ ak.landing_copy.hero_headline }}</h4>
+    <p><em>{{ ak.landing_copy.subheadline }}</em></p>
+    <ul>{% for vp in ak.landing_copy.value_props %}<li>{{ vp.icon }} <strong>{{ vp.title }}</strong>: {{ vp.description }}</li>{% endfor %}</ul>
+    <p><code>{{ ak.landing_copy.cta_primary }}</code> · <code>{{ ak.landing_copy.cta_secondary }}</code></p>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if opp.pipeline_notes %}
+<h2>📝 Pipeline Notes</h2>
+<pre class="notes">{{ opp.pipeline_notes }}</pre>
+{% endif %}
+
+<hr>
+
+<h2>Actions</h2>
+<form method="post" action="/move/{{ opp.id }}" class="action-form">
+  <label>Move to stage:
+    <select name="stage">
+      {% for s in stages %}
+      <option value="{{ s }}" {% if s == opp.pipeline_stage %}selected{% endif %}>{{ stage_emoji.get(s, '') }} {{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <input type="text" name="note" placeholder="Optional note">
+  <button type="submit">Move</button>
+</form>
+
+<form method="post" action="/note/{{ opp.id }}" class="action-form">
+  <label>Add note (no stage change):</label>
+  <input type="text" name="note" required>
+  <button type="submit">Add</button>
+</form>
+
+{% endblock %}

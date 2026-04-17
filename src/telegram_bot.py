@@ -449,6 +449,10 @@ class TelegramNotifier:
                 "/finance OPP-XXX — Unit economics, CAC/LTV, break-even, 12-month projection\n\n"
                 "🔎 *Claim Validation*\n"
                 "/validate OPP-XXX — Extract claims, verify via web (FIRE alerts auto-validate)\n\n"
+                "🧮 *Consensus*\n"
+                "/consensus OPP-XXX — 2nd-opinion score (Gemini vs Claude)\n\n"
+                "📡 *External Signals*\n"
+                "/signals — Scan Google Jobs (hiring) + Crunchbase (funding)\n\n"
                 "/help — Show this message"
             )
             await update.message.reply_text(msg)
@@ -689,6 +693,40 @@ class TelegramNotifier:
             else:
                 await update.message.reply_text(f"❌ Opportunity `{opp_id}` not found.")
 
+        async def cmd_signals(update: Update, context):
+            """Scan external signals (Google Jobs, Crunchbase)."""
+            await update.message.reply_text(
+                "📡 Scanning external signals (hiring + funding)... 30-60s."
+            )
+            result = await scout_engine.run_signal_scan()
+            total = sum(result.values())
+            if total == 0:
+                await update.message.reply_text(
+                    "No new signals found. "
+                    "(Set SERPAPI_KEY env var to enable Google Jobs.)"
+                )
+
+        async def cmd_consensus(update: Update, context):
+            """Get 2nd-opinion score on an opportunity."""
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/consensus OPP-XXX`\n"
+                    "Re-scores the opportunity with an independent model (Gemini).\n"
+                    "Flags disputes if the two models diverge by >15 points.\n"
+                    "~15 seconds, ~$0.01.",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            await update.message.reply_text(
+                f"🧮 Consensus check for `{opp_id}`... 15s.",
+                parse_mode='Markdown'
+            )
+            result = await scout_engine.run_consensus(opp_id)
+            if result.get('error'):
+                await update.message.reply_text(f"❌ {result['error']}")
+
         async def cmd_validate(update: Update, context):
             """Validate factual claims in an opportunity."""
             args = context.args
@@ -857,6 +895,8 @@ class TelegramNotifier:
         app.add_handler(CommandHandler("actionkit", cmd_actionkit))
         app.add_handler(CommandHandler("finance", cmd_finance))
         app.add_handler(CommandHandler("validate", cmd_validate))
+        app.add_handler(CommandHandler("consensus", cmd_consensus))
+        app.add_handler(CommandHandler("signals", cmd_signals))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
         app.add_handler(CallbackQueryHandler(on_feedback_button, pattern="^fb:"))

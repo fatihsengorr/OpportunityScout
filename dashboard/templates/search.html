@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Search · OpportunityScout{% endblock %}
+{% block content %}
+
+<h1>🔎 Search</h1>
+<form method="get" class="search-bar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search titles, descriptions, sectors, tags..." autofocus>
+  <button type="submit">Search</button>
+</form>
+
+{% if q %}
+<p>{{ opportunities|length }} results for "<strong>{{ q }}</strong>"</p>
+<div class="grid">
+  {% for opp in opportunities %}
+  <a href="/opp/{{ opp.id }}" class="card card-tier-{{ (opp.tier or 'LOW')|lower }}">
+    <div class="card-header">
+      <span class="tier-badge">{{ tier_emoji.get(opp.tier, '📝') }} {{ opp.tier or '?' }}</span>
+      <span class="score">{{ "%.0f"|format(opp.weighted_total or 0) }}/155</span>
+    </div>
+    <h3>{{ opp.title }}</h3>
+    <p class="one-liner">{{ opp.one_liner or '' }}</p>
+    <div class="card-meta">
+      <span class="sector">{{ opp.sector or '?' }}</span>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

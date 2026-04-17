@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · OpportunityScout{% endblock %}
+{% block content %}
+
+<div class="stats-bar">
+  <div class="stat"><span class="stat-label">🔥 FIRE</span><span class="stat-value">{{ tier_counts.get('FIRE', 0) }}</span></div>
+  <div class="stat"><span class="stat-label">⭐ HIGH</span><span class="stat-value">{{ tier_counts.get('HIGH', 0) }}</span></div>
+  <div class="stat"><span class="stat-label">📊 MEDIUM</span><span class="stat-value">{{ tier_counts.get('MEDIUM', 0) }}</span></div>
+  <div class="stat"><span class="stat-label">📝 LOW</span><span class="stat-value">{{ tier_counts.get('LOW', 0) }}</span></div>
+</div>
+
+<form method="get" class="filters">
+  <label>Tier
+    <select name="tier">
+      <option value="all" {% if filter_tier == 'all' %}selected{% endif %}>All</option>
+      <option value="FIRE" {% if filter_tier == 'FIRE' %}selected{% endif %}>🔥 FIRE</option>
+      <option value="HIGH" {% if filter_tier == 'HIGH' %}selected{% endif %}>⭐ HIGH</option>
+      <option value="MEDIUM" {% if filter_tier == 'MEDIUM' %}selected{% endif %}>📊 MEDIUM</option>
+    </select>
+  </label>
+  <label>Sector
+    <input type="text" name="sector" value="{{ filter_sector }}" placeholder="e.g. construction">
+  </label>
+  <label>Last N days
+    <input type="number" name="days" value="{{ filter_days }}" min="1" max="365">
+  </label>
+  <button type="submit">Apply</button>
+  <a href="/" class="btn-clear">Clear</a>
+</form>
+
+<div class="grid">
+  {% for opp in opportunities %}
+  <a href="/opp/{{ opp.id }}" class="card card-tier-{{ (opp.tier or 'LOW')|lower }}">
+    <div class="card-header">
+      <span class="tier-badge">{{ tier_emoji.get(opp.tier, '📝') }} {{ opp.tier or '?' }}</span>
+      <span class="score">{{ "%.0f"|format(opp.weighted_total or 0) }}/155</span>
+    </div>
+    <h3>{{ opp.title }}</h3>
+    <p class="one-liner">{{ opp.one_liner or '' }}</p>
+    <div class="card-meta">
+      <span class="sector">{{ opp.sector or '?' }}</span>
+      <span class="stage">{{ stage_emoji.get(opp.pipeline_stage or 'discovered', '🔎') }} {{ opp.pipeline_stage or 'discovered' }}</span>
+    </div>
+    {% if opp.score_disputed %}<span class="disputed">⚠️ disputed</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+{% if opportunities|length == 0 %}
+<p class="empty">No opportunities match your filters.</p>
+{% endif %}
+
+<aside class="sidebar">
+  <h3>Top Sectors (last {{ filter_days }}d)</h3>
+  <ul class="sector-list">
+    {% for s in sector_counts %}
+    <li><a href="/?sector={{ s.sector }}">{{ s.sector }}</a> <span>{{ s.count }}</span></li>
+    {% endfor %}
+  </ul>
+</aside>
+
+{% endblock %}

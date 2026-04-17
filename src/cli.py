@@ -97,6 +97,36 @@ async def cmd_deep_dive(args):
     print(json.dumps(result, indent=2, default=str))
 
 
+async def cmd_signals(args):
+    """Scan external signal sources (Google Jobs, Crunchbase)."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_signal_scan()
+    print(f"\n✅ External signal scan complete")
+    for source, count in result.items():
+        print(f"  {source}: {count} new signals")
+
+
+async def cmd_consensus(args):
+    """Run consensus check on an opportunity (2nd-opinion re-score)."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_consensus(args.opp_id)
+    if result.get('error'):
+        print(f"❌ Error: {result['error']}")
+    else:
+        c = result.get('consensus', {})
+        p = c.get('primary', {})
+        s = c.get('secondary', {}) or {}
+        print(f"\n✅ Consensus check for {args.opp_id}")
+        print(f"  Primary:   {p.get('score', 0):.0f}/155 ({p.get('tier', '?')})")
+        print(f"  Secondary: {s.get('score', 0):.0f}/155 ({s.get('tier', '?')})")
+        print(f"  Median: {c.get('median_score', 0):.0f}")
+        print(f"  Divergence: {c.get('divergence', 0):.0f}")
+        print(f"  Disputed: {c.get('disputed', False)}")
+        print(f"  Verdict: {c.get('verdict', '?')}")
+
+
 async def cmd_validate(args):
     """Validate factual claims in an opportunity."""
     from .scout_engine import ScoutEngine
@@ -670,6 +700,16 @@ def main():
     val_parser.add_argument('opp_id', type=str,
                             help='Opportunity ID')
 
+    # Consensus — 2nd-opinion score from independent model
+    cons_parser = subparsers.add_parser('consensus',
+                                         help='Get 2nd-opinion score from independent model')
+    cons_parser.add_argument('opp_id', type=str,
+                             help='Opportunity ID')
+
+    # Signals — external signal scan (Google Jobs, Crunchbase)
+    subparsers.add_parser('signals',
+                          help='Scan external signals (hiring, funding)')
+
     # Score
     score_parser = subparsers.add_parser('score', help='Score a business idea')
     score_parser.add_argument('idea', type=str)
@@ -769,6 +809,8 @@ def main():
         'action_kit': cmd_action_kit,
         'finance': cmd_finance,
         'validate': cmd_validate,
+        'consensus': cmd_consensus,
+        'signals': cmd_signals,
         'score': cmd_score,
         'evolve': cmd_evolve,
         'generate': cmd_generate,

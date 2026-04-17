@@ -42,6 +42,8 @@ from .horizon_scanner import HorizonScanner
 from .action_kit_generator import ActionKitGenerator
 from .financial_modeler import FinancialModeler
 from .claim_validator import ClaimValidator
+from .consensus_scorer import ConsensusScorer
+from .signal_scanner import SignalScanner
 
 logger = logging.getLogger("scout.engine")
 
@@ -74,6 +76,8 @@ class ScoutEngine:
         self.action_kit = ActionKitGenerator(self.config, self.kb)
         self.financial = FinancialModeler(self.config, self.kb)
         self.validator = ClaimValidator(self.config, self.kb)
+        self.consensus = ConsensusScorer(self.config, self.kb)
+        self.signals = SignalScanner(self.config, self.kb)
 
         # Initialize Intelligence Mesh event bus
         self.event_bus = EventBus(self.kb)
@@ -929,19 +933,30 @@ class ScoutEngine:
         logger.info(f"🎬 Action kit delivered for {opp_id}")
         return {"opportunity_id": opp_id, "kit": kit}
 
+    # ─── External Signal Scanning ──────────────────────────
+
+    async def run_signal_scan(self) -> dict:
+        """Scan external sources (Google Jobs, Crunchbase) for early signals."""
+        result = await self.signals.scan_all()
+        total = sum(result.values())
+        summary = self.signals.summary_for_telegram(days=7)
+        await self.telegram.send_text(summary)
+        logger.info(f"📡 Signal scan complete: {total} new signals")
+        return result
+
     # ─── Claim Validation ─────────────────────────────────────
 
     async def _send_fire_alert_with_validation(self, opp: dict):
-        """Run claim validation in background before sending FIRE alert.
+        """Run claim validation + consensus check before sending FIRE alert.
 
-        On validation failure, alert is still sent (with '?' badge) — we don't
-        want to suppress discovery because validator timed out.
+        On any failure, alert is still sent (with '?' badge).
         """
+        badges = []
+
+        # 1. Claim validation (Haiku + web search)
         try:
             validation = self.validator.validate(opp)
-            badge = self.validator.format_badge(validation)
-            opp['_validation_badge'] = badge
-            # Flag disputed claims prominently
+            badges.append(self.validator.format_badge(validation))
             if validation.get('status') == 'disputed':
                 logger.warning(
                     f"🔎 DISPUTED CLAIMS in {opp.get('id')}: "
@@ -949,9 +964,50 @@ class ScoutEngine:
                 )
         except Exception as e:
             logger.warning(f"Validation skipped for {opp.get('id')}: {e}")
-            opp['_validation_badge'] = "❓ not validated"
+            badges.append("❓ not validated")
 
+        # 2. Consensus check (Gemini Flash blind re-score)
+        try:
+            consensus = self.consensus.check_consensus(opp)
+            badges.append(self.consensus.format_badge(consensus))
+            # If disputed and secondary disagrees strongly, log and possibly downgrade
+            if consensus.get('disputed'):
+                secondary = consensus.get('secondary', {}) or {}
+                if secondary.get('tier') in ('LOW', 'MEDIUM'):
+                    logger.warning(
+                        f"🧮 Secondary DOWNGRADED {opp.get('id')} "
+                        f"from {opp.get('tier')} to {secondary.get('tier')}"
+                    )
+        except Exception as e:
+            logger.warning(f"Consensus skipped for {opp.get('id')}: {e}")
+            badges.append("⚪ consensus N/A")
+
+        opp['_validation_badge'] = " · ".join(badges)
         await self.telegram.send_fire_alert(opp)
+
+    async def run_consensus(self, opp_id: str) -> dict:
+        """Manually trigger consensus check on an opportunity."""
+        cursor = self.kb.conn.cursor()
+        cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            await self.telegram.send_text(f"❌ `{opp_id}` not found.")
+            return {"error": "not_found"}
+        opp = dict(row)
+
+        try:
+            result = self.consensus.check_consensus(opp)
+        except Exception as e:
+            logger.error(f"Consensus failed: {e}")
+            await self.telegram.send_text(f"❌ Consensus failed: {e}")
+            return {"error": str(e)}
+
+        msg = f"🧮 *Consensus — {opp.get('title', '?')[:60]}*\n"
+        msg += f"`{opp_id}`\n\n"
+        msg += self.consensus.format_full(result)
+        await self.telegram.send_text(msg)
+
+        return {"opportunity_id": opp_id, "consensus": result}
 
     async def run_validation(self, opp_id: str) -> dict:
         """Validate claims in an opportunity and deliver result via Telegram."""

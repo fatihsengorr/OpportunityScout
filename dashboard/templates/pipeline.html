@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Pipeline · OpportunityScout{% endblock %}
+{% block content %}
+
+<h1>📋 Pipeline</h1>
+<p class="hint">Active opportunities across all stages. Click a card for details.</p>
+
+<div class="kanban">
+  {% for stage in stages %}
+  <div class="kanban-column">
+    <div class="kanban-header">
+      <h3>{{ stage_emoji.get(stage, '?') }} {{ stage|upper }}</h3>
+      <span class="count">{{ by_stage[stage]|length }}</span>
+    </div>
+    <div class="kanban-items">
+      {% for item in by_stage[stage] %}
+      <a href="/opp/{{ item.id }}" class="kanban-card card-tier-{{ (item.tier or 'LOW')|lower }}">
+        <div class="card-header-mini">
+          <span>{{ tier_emoji.get(item.tier, '') }}</span>
+          <span class="score-mini">{{ "%.0f"|format(item.weighted_total or 0) }}</span>
+        </div>
+        <div class="card-title-mini">{{ item.title[:80] }}</div>
+        <div class="sector-mini">{{ item.sector or '' }}</div>
+        {% if item.action_by %}<div class="action-by">⏰ {{ item.action_by }}</div>{% endif %}
+      </a>
+      {% endfor %}
+      {% if by_stage[stage]|length == 0 %}
+      <div class="kanban-empty">—</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

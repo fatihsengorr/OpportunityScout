@@ -1,0 +1,24 @@
+[Unit]
+Description=OpportunityScout Web Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+EnvironmentFile=/opt/opportunity-scout/.env
+Environment="SCOUT_DB_PATH=/opt/opportunity-scout/data/opportunity_scout.db"
+Environment="DASHBOARD_PORT=8080"
+ExecStart=/opt/opportunity-scout/venv/bin/python -m uvicorn dashboard.app:app --host 127.0.0.1 --port 8080
+Restart=always
+RestartSec=10
+MemoryMax=256M
+Nice=10
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-dashboard
+
+[Install]
+WantedBy=multi-user.target

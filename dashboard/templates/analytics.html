@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Analytics · OpportunityScout{% endblock %}
+{% block content %}
+
+<h1>📊 Analytics</h1>
+
+<section>
+  <h2>Daily Discovery (last 30 days)</h2>
+  <table class="data-table">
+    <thead><tr><th>Day</th><th>Total</th><th>🔥 FIRE</th><th>⭐ HIGH</th></tr></thead>
+    <tbody>
+    {% for d in daily %}
+    <tr>
+      <td>{{ d.day }}</td>
+      <td>{{ d.cnt }}</td>
+      <td>{{ d.fires or 0 }}</td>
+      <td>{{ d.highs or 0 }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Strategy Performance (30d)</h2>
+  <table class="data-table">
+    <thead><tr><th>Engine</th><th>Strategy</th><th>Total</th><th>🔥 FIRE</th><th>Avg Score</th><th>Best</th></tr></thead>
+    <tbody>
+    {% for s in strategies %}
+    <tr>
+      <td>{{ s.engine }}</td>
+      <td>{{ s.strategy_name }}</td>
+      <td>{{ s.total }}</td>
+      <td>{{ s.fires or 0 }}</td>
+      <td>{{ "%.0f"|format(s.avg_score or 0) }}</td>
+      <td>{{ "%.0f"|format(s.best or 0) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Top Sources (30d, with opportunities)</h2>
+  <table class="data-table">
+    <thead><tr><th>Source</th><th>Items</th><th>Opportunities</th><th>Avg Score</th></tr></thead>
+    <tbody>
+    {% for s in sources %}
+    <tr>
+      <td>{{ s.source_name }}</td>
+      <td>{{ s.items }}</td>
+      <td>{{ s.opps }}</td>
+      <td>{{ "%.0f"|format(s.avg_score or 0) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+{% if disputed > 0 %}
+<p class="warning">⚠️ {{ disputed }} opportunities have disputed scores (primary and secondary model disagree by >15 points).</p>
+{% endif %}
+
+{% endblock %}
