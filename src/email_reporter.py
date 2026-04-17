@@ -90,6 +90,15 @@ class EmailReporter:
         html = self._render_weekly_report(report_data, date_str)
         self._send(subject, html)
 
+    async def send_raw_html(self, subject: str, html_body: str):
+        """Send a pre-rendered HTML email as-is (no wrapping template).
+
+        Used by modules that produce their own full HTML (action kit, financial
+        model, layer reports). Avoids the activity_report wrapper which dumps
+        raw HTML as a dict field.
+        """
+        self._send(subject, html_body)
+
     async def send_activity_report(self, activity_type: str, opportunities: list,
                                       extra_info: dict = None):
         """Send a report email after any discovery activity (serendipity, localize, generate)."""
