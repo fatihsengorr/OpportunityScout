@@ -293,6 +293,21 @@ class KnowledgeBase:
             cursor.execute("ALTER TABLE opportunities ADD COLUMN action_by TEXT")
             self.conn.commit()
 
+        # Pipeline tracking — granular stages
+        # Stages: discovered → researching → validating → building → launched → won/dead
+        if 'pipeline_stage' not in columns:
+            cursor.execute("""
+                ALTER TABLE opportunities
+                ADD COLUMN pipeline_stage TEXT DEFAULT 'discovered'
+            """)
+            self.conn.commit()
+        if 'pipeline_notes' not in columns:
+            cursor.execute("ALTER TABLE opportunities ADD COLUMN pipeline_notes TEXT")
+            self.conn.commit()
+        if 'pipeline_updated_at' not in columns:
+            cursor.execute("ALTER TABLE opportunities ADD COLUMN pipeline_updated_at TEXT")
+            self.conn.commit()
+
         # Deduplicate regulatory_deadlines and add unique index
         try:
             cursor.execute("""
@@ -399,6 +414,127 @@ class KnowledgeBase:
             params
         )
         self.conn.commit()
+
+    # ─── Pipeline Tracking ──────────────────────────────────
+
+    PIPELINE_STAGES = [
+        'discovered',   # Just found — not yet reviewed
+        'researching',  # Doing deep research, reading rivals
+        'validating',   # Customer discovery calls, landing pages
+        'building',     # Actually building MVP
+        'launched',     # Live, seeking customers
+        'won',          # Validated, generating revenue
+        'dead',         # Killed — won't pursue
+    ]
+
+    def move_pipeline_stage(self, opp_id: str, stage: str,
+                            append_note: str = None) -> bool:
+        """Move opportunity to a new pipeline stage.
+
+        Returns True if moved, False if stage invalid or opp not found.
+        """
+        if stage not in self.PIPELINE_STAGES:
+            return False
+        cursor = self.conn.cursor()
+        # Check opportunity exists
+        cursor.execute("SELECT pipeline_notes FROM opportunities WHERE id = ?",
+                       (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+
+        # Append to notes if provided
+        existing_notes = row['pipeline_notes'] or ''
+        if append_note:
+            from datetime import datetime as _dt
+            ts = _dt.utcnow().strftime('%Y-%m-%d %H:%M')
+            new_line = f"[{ts} → {stage}] {append_note}"
+            new_notes = existing_notes + '\n' + new_line if existing_notes else new_line
+        else:
+            new_notes = existing_notes
+
+        cursor.execute("""
+            UPDATE opportunities
+            SET pipeline_stage = ?,
+                pipeline_notes = ?,
+                pipeline_updated_at = datetime('now'),
+                updated_at = datetime('now')
+            WHERE id = ?
+        """, (stage, new_notes, opp_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def get_pipeline_opportunities(self, stage: str = None,
+                                    exclude_dead: bool = True) -> list:
+        """Get opportunities grouped by pipeline stage.
+
+        If stage is None, returns all active pipeline items.
+        """
+        cursor = self.conn.cursor()
+        where_clauses = []
+        params = []
+        if stage:
+            where_clauses.append("pipeline_stage = ?")
+            params.append(stage)
+        if exclude_dead:
+            where_clauses.append("pipeline_stage != 'dead'")
+            # Also filter out items still in 'discovered' that are not FIRE/HIGH
+            # (they're basically just the queue — noisy)
+
+        where = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        cursor.execute(f"""
+            SELECT id, title, sector, tier, weighted_total, pipeline_stage,
+                   pipeline_notes, pipeline_updated_at, action_by, created_at
+            FROM opportunities
+            {where}
+            ORDER BY
+              CASE pipeline_stage
+                WHEN 'won' THEN 1
+                WHEN 'launched' THEN 2
+                WHEN 'building' THEN 3
+                WHEN 'validating' THEN 4
+                WHEN 'researching' THEN 5
+                WHEN 'discovered' THEN 6
+                WHEN 'dead' THEN 7
+                ELSE 8
+              END,
+              weighted_total DESC
+        """, params)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_pipeline_summary(self) -> dict:
+        """Count opportunities per pipeline stage."""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT pipeline_stage, COUNT(*) as cnt
+            FROM opportunities
+            GROUP BY pipeline_stage
+        """)
+        return {row['pipeline_stage'] or 'discovered': row['cnt']
+                for row in cursor.fetchall()}
+
+    def add_pipeline_note(self, opp_id: str, note: str) -> bool:
+        """Append a timestamped note to an opportunity without changing stage."""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT pipeline_notes, pipeline_stage FROM opportunities WHERE id = ?",
+                       (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            return False
+        from datetime import datetime as _dt
+        ts = _dt.utcnow().strftime('%Y-%m-%d %H:%M')
+        stage = row['pipeline_stage'] or 'discovered'
+        new_line = f"[{ts} | {stage}] {note}"
+        existing = row['pipeline_notes'] or ''
+        new_notes = existing + '\n' + new_line if existing else new_line
+        cursor.execute("""
+            UPDATE opportunities
+            SET pipeline_notes = ?,
+                updated_at = datetime('now')
+            WHERE id = ?
+        """, (new_notes, opp_id))
+        self.conn.commit()
+        return cursor.rowcount > 0
 
     def is_duplicate(self, title: str, source: str = None,
                      sector: str = None, tags: list = None) -> bool:

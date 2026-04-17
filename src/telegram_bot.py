@@ -18,8 +18,11 @@ logger = logging.getLogger("scout.telegram")
 
 # Try to import telegram library
 try:
-    from telegram import Bot, Update
-    from telegram.ext import Application, CommandHandler, MessageHandler, filters
+    from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup
+    from telegram.ext import (
+        Application, CommandHandler, MessageHandler,
+        CallbackQueryHandler, filters
+    )
     HAS_TELEGRAM = True
 except ImportError:
     HAS_TELEGRAM = False
@@ -46,6 +49,32 @@ class TelegramNotifier:
             if not self.bot_token:
                 logger.warning("Telegram bot token not configured")
 
+    # ─── Feedback Keyboard ──────────────────────────────────
+
+    @staticmethod
+    def _feedback_keyboard(opp_id: str):
+        """Inline keyboard for operator feedback on an opportunity.
+
+        Callback format: fb:<action>:<opp_id>
+          act   → move to researching + positive signal
+          like  → interested, no stage change, +1 signal
+          skip  → negative signal, move to dead
+          more  → show full opportunity details
+        """
+        if not HAS_TELEGRAM:
+            return None
+        buttons = [
+            [
+                InlineKeyboardButton("🔥 Acting", callback_data=f"fb:act:{opp_id}"),
+                InlineKeyboardButton("👍 Interested", callback_data=f"fb:like:{opp_id}"),
+            ],
+            [
+                InlineKeyboardButton("👎 Skip", callback_data=f"fb:skip:{opp_id}"),
+                InlineKeyboardButton("📎 More", callback_data=f"fb:more:{opp_id}"),
+            ]
+        ]
+        return InlineKeyboardMarkup(buttons)
+
     # ─── Alert Methods ──────────────────────────────────────
 
     async def send_fire_alert(self, opportunity: dict):
@@ -71,20 +100,25 @@ class TelegramNotifier:
             f"📎 /deep\\_dive\\_{self._escape_md(str(opp_id))}"
         )
 
-        await self._send(message, parse_mode="MarkdownV2")
+        keyboard = self._feedback_keyboard(str(opp_id))
+        await self._send(message, parse_mode="MarkdownV2",
+                         reply_markup=keyboard)
 
     async def send_high_alert(self, opportunity: dict):
         """Send alert for a HIGH-tier opportunity."""
         score_str = self._escape_md(str(opportunity.get('weighted_total', 0)))
+        opp_id = opportunity.get('id', 'N/A')
         message = (
             f"⭐ *HIGH OPPORTUNITY*\n\n"
             f"*{self._escape_md(opportunity.get('title', 'Unknown'))}*\n"
             f"Score: {score_str}/155\n\n"
             f"_{self._escape_md(opportunity.get('one_liner', ''))}_\n\n"
             f"🎯 First Move: {self._escape_md(opportunity.get('first_move', 'N/A'))}\n\n"
-            f"🔗 `{self._escape_md(str(opportunity.get('id', 'N/A')))}`"
+            f"🔗 `{self._escape_md(str(opp_id))}`"
         )
-        await self._send(message, parse_mode="MarkdownV2")
+        keyboard = self._feedback_keyboard(str(opp_id))
+        await self._send(message, parse_mode="MarkdownV2",
+                         reply_markup=keyboard)
 
     async def send_daily_digest(self, opportunities: list, signals: list,
                                  trends: list = None):
@@ -394,7 +428,13 @@ class TelegramNotifier:
                 "📊 *Reports*\n"
                 "/portfolio — View top 10 opportunities\n"
                 "/stats — System statistics\n"
-                "/digest — Generate today's digest\n"
+                "/digest — Generate today's digest\n\n"
+                "📋 *Pipeline Tracking*\n"
+                "/pipeline — Show pipeline (all stages)\n"
+                "/show OPP-XXX — Full details + notes\n"
+                "/move OPP-XXX <stage> [note] — Change stage\n"
+                "/note OPP-XXX <text> — Add a note\n"
+                "  Stages: discovered → researching → validating → building → launched → won/dead\n\n"
                 "/help — Show this message"
             )
             await update.message.reply_text(msg)
@@ -528,20 +568,227 @@ class TelegramNotifier:
                 f"{len(hybrids)} hybrid opportunities generated."
             )
 
+        # ─── Pipeline Tracking ──────────────────────────────
+        STAGE_EMOJI = {
+            'discovered': '🔎',
+            'researching': '📚',
+            'validating': '🎯',
+            'building': '🔨',
+            'launched': '🚀',
+            'won': '🏆',
+            'dead': '💀',
+        }
+
+        async def cmd_pipeline(update: Update, context):
+            """Show pipeline — all opportunities grouped by stage."""
+            from src.knowledge_base import KnowledgeBase
+            kb = scout_engine.kb
+            summary = kb.get_pipeline_summary()
+            items = kb.get_pipeline_opportunities(exclude_dead=True)
+
+            # Summary header
+            msg = "📋 *PIPELINE STATUS*\n"
+            msg += "━━━━━━━━━━━━━━━━━\n"
+            for stage in kb.PIPELINE_STAGES:
+                cnt = summary.get(stage, 0)
+                if cnt > 0:
+                    msg += f"{STAGE_EMOJI[stage]} {stage}: *{cnt}*\n"
+            msg += "\n"
+
+            # Active items (exclude discovered unless FIRE/HIGH)
+            active = [i for i in items
+                      if i['pipeline_stage'] not in ('discovered', 'dead')
+                      or i.get('tier') in ('FIRE', 'HIGH')]
+            active = active[:15]
+
+            if not active:
+                msg += "_No active pipeline items yet._\n"
+                msg += "Use `/move OPP-XXX researching` to start tracking."
+            else:
+                current_stage = None
+                for item in active:
+                    stage = item['pipeline_stage'] or 'discovered'
+                    if stage != current_stage:
+                        msg += f"\n{STAGE_EMOJI[stage]} *{stage.upper()}*\n"
+                        current_stage = stage
+                    tier_emoji = {'FIRE': '🔥', 'HIGH': '⭐', 'MEDIUM': '📊'}.get(
+                        item.get('tier'), '')
+                    title = (item['title'] or '')[:60]
+                    msg += f"  {tier_emoji} `{item['id']}` {title} ({item.get('weighted_total', 0):.0f})\n"
+
+            msg += "\n_Commands:_\n"
+            msg += "`/move OPP-XXX <stage>` — change stage\n"
+            msg += "`/note OPP-XXX <text>` — add note\n"
+            msg += "`/show OPP-XXX` — details\n"
+            msg += f"_Stages: {' → '.join(kb.PIPELINE_STAGES[:-1])} / dead_"
+
+            await update.message.reply_text(msg, parse_mode='Markdown')
+
+        async def cmd_move(update: Update, context):
+            """Move opportunity to a new pipeline stage."""
+            kb = scout_engine.kb
+            args = context.args
+            if len(args) < 2:
+                await update.message.reply_text(
+                    "Usage: `/move OPP-XXX <stage> [optional note]`\n"
+                    f"Stages: {', '.join(kb.PIPELINE_STAGES)}",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            stage = args[1].lower()
+            note = ' '.join(args[2:]) if len(args) > 2 else None
+
+            if stage not in kb.PIPELINE_STAGES:
+                await update.message.reply_text(
+                    f"❌ Invalid stage '{stage}'. Use: {', '.join(kb.PIPELINE_STAGES)}"
+                )
+                return
+
+            ok = kb.move_pipeline_stage(opp_id, stage, append_note=note)
+            if ok:
+                await update.message.reply_text(
+                    f"{STAGE_EMOJI[stage]} `{opp_id}` moved to *{stage}*"
+                    + (f"\n📝 Note: {note}" if note else ""),
+                    parse_mode='Markdown'
+                )
+            else:
+                await update.message.reply_text(f"❌ Opportunity `{opp_id}` not found.")
+
+        async def cmd_note(update: Update, context):
+            """Add a timestamped note to an opportunity without changing stage."""
+            kb = scout_engine.kb
+            args = context.args
+            if len(args) < 2:
+                await update.message.reply_text(
+                    "Usage: `/note OPP-XXX <note text>`",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            note = ' '.join(args[1:])
+            ok = kb.add_pipeline_note(opp_id, note)
+            if ok:
+                await update.message.reply_text(
+                    f"📝 Note added to `{opp_id}`", parse_mode='Markdown'
+                )
+            else:
+                await update.message.reply_text(f"❌ Opportunity `{opp_id}` not found.")
+
+        async def cmd_show(update: Update, context):
+            """Show full details of an opportunity including pipeline notes."""
+            kb = scout_engine.kb
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/show OPP-XXX`", parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            cursor = kb.conn.cursor()
+            cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+            row = cursor.fetchone()
+            if not row:
+                await update.message.reply_text(f"❌ `{opp_id}` not found.")
+                return
+            row = dict(row)
+            stage = row.get('pipeline_stage') or 'discovered'
+            tier_emoji = {'FIRE': '🔥', 'HIGH': '⭐', 'MEDIUM': '📊'}.get(
+                row.get('tier'), '📝')
+            msg = f"{tier_emoji} *{row['title']}*\n"
+            msg += f"`{row['id']}` — Score: {row.get('weighted_total', 0):.0f}/155 ({row.get('tier', '?')})\n"
+            msg += f"Sector: {row.get('sector', '?')}\n"
+            msg += f"Stage: {STAGE_EMOJI.get(stage, '🔎')} *{stage}*\n"
+            if row.get('action_by'):
+                msg += f"Action by: {row['action_by']}\n"
+            msg += f"\n{(row.get('description', '') or '')[:400]}\n"
+            notes = row.get('pipeline_notes')
+            if notes:
+                msg += f"\n📝 *Notes:*\n```\n{notes[-800:]}\n```"
+            await update.message.reply_text(msg, parse_mode='Markdown')
+
+        # ─── Feedback Button Callbacks ──────────────────────
+        async def on_feedback_button(update: Update, context):
+            """Handle inline button clicks on FIRE/HIGH alerts.
+
+            Callback format: fb:<action>:<opp_id>
+              act  → Move to 'researching', rating 5, log positive signal
+              like → Rating 4, log mild-positive signal (stage unchanged)
+              skip → Move to 'dead', rating 1, log negative signal
+              more → Show full opportunity details
+            """
+            query = update.callback_query
+            await query.answer()  # Acknowledge the button press
+            try:
+                parts = query.data.split(':', 2)
+                if len(parts) != 3 or parts[0] != 'fb':
+                    return
+                action, opp_id = parts[1], parts[2]
+                kb = scout_engine.kb
+
+                # Map action → stage/rating
+                if action == 'act':
+                    kb.move_pipeline_stage(opp_id, 'researching',
+                                           append_note='Operator: Acting on this')
+                    kb.update_opportunity_status(opp_id, 'acted_on', rating=5,
+                                                 notes='Feedback: 🔥 Acting')
+                    reply = f"✅ `{opp_id}` → 🔥 Acting\nMoved to *researching* stage."
+                elif action == 'like':
+                    kb.update_opportunity_status(opp_id, 'reviewed', rating=4,
+                                                 notes='Feedback: 👍 Interested')
+                    reply = f"✅ `{opp_id}` → 👍 Interested"
+                elif action == 'skip':
+                    kb.move_pipeline_stage(opp_id, 'dead',
+                                           append_note='Operator: Not for me')
+                    kb.update_opportunity_status(opp_id, 'archived', rating=1,
+                                                 notes='Feedback: 👎 Skip')
+                    reply = f"✅ `{opp_id}` → 👎 Skipped\nMarked as *dead*."
+                elif action == 'more':
+                    # Show full details inline
+                    cursor = kb.conn.cursor()
+                    cursor.execute("SELECT * FROM opportunities WHERE id = ?",
+                                   (opp_id,))
+                    row = cursor.fetchone()
+                    if not row:
+                        await query.message.reply_text(f"❌ `{opp_id}` not found.",
+                                                        parse_mode='Markdown')
+                        return
+                    row = dict(row)
+                    msg = (f"*{row['title']}*\n"
+                           f"`{row['id']}` — {row.get('weighted_total', 0):.0f}/155\n\n"
+                           f"{(row.get('description', '') or '')[:800]}\n\n"
+                           f"💰 Revenue: {row.get('revenue_path', 'N/A')}\n"
+                           f"🎯 First move: {row.get('first_move', 'N/A')}")
+                    await query.message.reply_text(msg, parse_mode='Markdown')
+                    return
+                else:
+                    return
+
+                await query.message.reply_text(reply, parse_mode='Markdown')
+            except Exception as e:
+                logger.error(f"Feedback callback error: {e}")
+                await query.message.reply_text(f"❌ Error: {e}")
+
         app.add_handler(CommandHandler("deadlines", cmd_deadlines))
         app.add_handler(CommandHandler("competitors", cmd_competitors))
         app.add_handler(CommandHandler("crosspoll", cmd_crosspoll))
         app.add_handler(CommandHandler("brain", cmd_brain))
         app.add_handler(CommandHandler("digest", cmd_digest))
+        app.add_handler(CommandHandler("pipeline", cmd_pipeline))
+        app.add_handler(CommandHandler("move", cmd_move))
+        app.add_handler(CommandHandler("note", cmd_note))
+        app.add_handler(CommandHandler("show", cmd_show))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
+        app.add_handler(CallbackQueryHandler(on_feedback_button, pattern="^fb:"))
 
         return app
 
     # ─── Internal Methods ───────────────────────────────────
 
-    async def _send(self, text: str, parse_mode: str = None):
-        """Send a message via Telegram bot."""
+    async def _send(self, text: str, parse_mode: str = None,
+                    reply_markup=None):
+        """Send a message via Telegram bot, optionally with inline buttons."""
         if not self.bot or not self.chat_id:
             # Fallback: log to console
             logger.info(f"[TELEGRAM] {text}")
@@ -551,17 +798,19 @@ class TelegramNotifier:
             await self.bot.send_message(
                 chat_id=self.chat_id,
                 text=text,
-                parse_mode=parse_mode
+                parse_mode=parse_mode,
+                reply_markup=reply_markup,
             )
         except Exception as e:
             logger.error(f"Telegram send failed: {e}")
-            # Retry without formatting
+            # Retry without formatting (keep keyboard)
             if parse_mode:
                 try:
                     clean = text.replace('*', '').replace('_', '').replace('\\', '')
                     await self.bot.send_message(
                         chat_id=self.chat_id,
-                        text=clean
+                        text=clean,
+                        reply_markup=reply_markup,
                     )
                 except Exception as e2:
                     logger.error(f"Telegram retry also failed: {e2}")

@@ -52,24 +52,46 @@ class LLMResponse:
 # ─── Provider implementations ──────────────────────────────────
 
 class ClaudeProvider:
-    """Thin wrapper around Anthropic SDK — preserves existing behavior."""
+    """Thin wrapper around Anthropic SDK — preserves existing behavior.
+
+    Implements prompt caching (cache_control: ephemeral) for system prompts
+    over 1024 tokens. Cache hits cost 10% of normal input pricing.
+    5-minute TTL, auto-refreshed on each hit.
+    """
+
+    # Anthropic prompt caching requires min 1024 tokens (Sonnet/Opus)
+    # Our SYSTEM_PROMPT.md is ~2200 tokens — well above threshold
+    CACHE_MIN_CHARS = 4096  # ~1024 tokens at 4 chars/token
 
     def __init__(self, api_key: str):
         from anthropic import Anthropic
         self.client = Anthropic(api_key=api_key)
-        logger.info("🟣 Claude provider initialized")
+        logger.info("🟣 Claude provider initialized (prompt caching enabled)")
 
     def create(self, *, model: str, max_tokens: int,
                messages: list, system: str = None,
                tools: list = None) -> LLMResponse:
-        """Direct passthrough to Anthropic API, returns native response."""
+        """Direct passthrough to Anthropic API with prompt caching on system prompt."""
         kwargs = {
             "model": model,
             "max_tokens": max_tokens,
             "messages": messages,
         }
+
         if system:
-            kwargs["system"] = system
+            # Apply cache_control to system prompt if large enough
+            # System becomes a list of content blocks instead of a plain string
+            if len(system) >= self.CACHE_MIN_CHARS:
+                kwargs["system"] = [
+                    {
+                        "type": "text",
+                        "text": system,
+                        "cache_control": {"type": "ephemeral"}
+                    }
+                ]
+            else:
+                kwargs["system"] = system
+
         if tools:
             kwargs["tools"] = tools
 
