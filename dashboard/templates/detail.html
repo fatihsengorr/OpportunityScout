@@ -40,11 +40,23 @@
 <h2>Scoring Breakdown</h2>
 <div class="scores">
   {% for dim, score in opp.scores.items() %}
-  {% set score_val = score if score is number else (score.value if score is mapping and 'value' in score else 0) %}
-  <div class="score-item">
-    <span class="dim">{{ dim }}</span>
-    <div class="bar"><div class="bar-fill" style="width: {{ (score_val|float)*10 }}%"></div></div>
-    <span class="score-value">{{ score_val }}/10</span>
+  {% if score is number %}
+    {% set score_val = score %}
+    {% set reason = '' %}
+  {% elif score is mapping %}
+    {% set score_val = score.get('score', score.get('value', 0)) %}
+    {% set reason = score.get('reason', score.get('reasoning', '')) %}
+  {% else %}
+    {% set score_val = 0 %}
+    {% set reason = '' %}
+  {% endif %}
+  <div class="score-item-row">
+    <div class="score-item">
+      <span class="dim">{{ dim }}</span>
+      <div class="bar"><div class="bar-fill" style="width: {{ (score_val|float)*10 }}%"></div></div>
+      <span class="score-value">{{ score_val }}/10</span>
+    </div>
+    {% if reason %}<div class="score-reason">{{ reason }}</div>{% endif %}
   </div>
   {% endfor %}
 </div>

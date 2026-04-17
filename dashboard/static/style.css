@@ -331,12 +331,30 @@ blockquote {
 .detail-grid h2 { margin: 0 0 8px; font-size: 1rem; color: var(--text-dim); }
 
 /* Scores */
-.scores { display: flex; flex-direction: column; gap: 8px; }
+.scores { display: flex; flex-direction: column; gap: 12px; }
+.score-item-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.score-item-row:last-child { border: none; }
 .score-item {
   display: grid;
   grid-template-columns: 180px 1fr 60px;
   gap: 12px;
   align-items: center;
+}
+.score-reason {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  padding-left: 192px;
+  line-height: 1.4;
+}
+@media (max-width: 700px) {
+  .score-item { grid-template-columns: 140px 1fr 50px; }
+  .score-reason { padding-left: 0; }
 }
 .dim { font-size: 0.9rem; }
 .bar {
