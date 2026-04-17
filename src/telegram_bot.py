@@ -727,6 +727,22 @@ class TelegramNotifier:
                     "(Set SERPAPI_KEY env var to enable Google Jobs.)"
                 )
 
+        async def cmd_family5(update: Update, context):
+            await update.message.reply_text("💰 Cost curves scan... 3-5 dk.")
+            await scout_engine.run_family5()
+
+        async def cmd_family1(update: Update, context):
+            await update.message.reply_text("🔬 Science & patent scan... 5-8 dk.")
+            await scout_engine.run_family1()
+
+        async def cmd_family2(update: Update, context):
+            await update.message.reply_text("🔌 Infra launches scan... 5-8 dk.")
+            await scout_engine.run_family2()
+
+        async def cmd_scorer_audit(update: Update, context):
+            await update.message.reply_text("🔎 Scorer drift audit... 30s.")
+            await scout_engine.run_scorer_audit()
+
         async def cmd_tomography(update: Update, context):
             """Layer A — weekly Dünya Tomografisi."""
             await update.message.reply_text(
@@ -1013,6 +1029,10 @@ class TelegramNotifier:
         app.add_handler(CommandHandler("tomography", cmd_tomography))
         app.add_handler(CommandHandler("theses", cmd_theses))
         app.add_handler(CommandHandler("candidates", cmd_candidates))
+        app.add_handler(CommandHandler("family5", cmd_family5))
+        app.add_handler(CommandHandler("family1", cmd_family1))
+        app.add_handler(CommandHandler("family2", cmd_family2))
+        app.add_handler(CommandHandler("scoreraudit", cmd_scorer_audit))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
         app.add_handler(CallbackQueryHandler(on_feedback_button, pattern="^fb:"))

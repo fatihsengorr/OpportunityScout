@@ -97,6 +97,52 @@ async def cmd_deep_dive(args):
     print(json.dumps(result, indent=2, default=str))
 
 
+async def cmd_family5(args):
+    """Aile 5 — cost curves weekly scan."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_family5()
+    print(f"\n💰 Cost Curves Scan complete")
+    print(f"  Metrics checked: {result.get('metrics_checked', 0)}")
+    print(f"  Signals: {len(result.get('signals', []))}")
+    print(f"  Correlations: {len(result.get('correlations', []))}")
+
+
+async def cmd_family1(args):
+    """Aile 1 — science & patent weekly scan."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_family1()
+    print(f"\n🔬 Science & Patent Scan complete")
+    print(f"  Total findings: {result.get('total_findings', 0)}")
+    for cat, cnt in result.get('by_category', {}).items():
+        print(f"  {cat}: {cnt}")
+
+
+async def cmd_family2(args):
+    """Aile 2 — infrastructure launches weekly scan."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_family2()
+    print(f"\n🔌 Infra Launches Scan complete")
+    print(f"  Total launches: {result.get('total_launches', 0)}")
+    for src, cnt in result.get('by_source', {}).items():
+        if cnt > 0:
+            print(f"  {src}: {cnt}")
+
+
+async def cmd_scorer_audit(args):
+    """Monthly scorer drift audit."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_scorer_audit()
+    print(f"\n🔎 Scorer Audit")
+    print(f"  Status: {result.get('status', '?')}")
+    print(f"  Drift detected: {result.get('drift_detected', False)}")
+    if result.get('verdict'):
+        print(f"  Verdict: {result['verdict']}")
+
+
 async def cmd_tomography(args):
     """Layer A — weekly Dünya Tomografisi."""
     from .scout_engine import ScoutEngine
@@ -805,6 +851,16 @@ def main():
     subparsers.add_parser('signals',
                           help='Scan external signals (hiring, funding)')
 
+    # Family scanners
+    subparsers.add_parser('family5',
+                          help="Aile 5 — Cost curves weekly scan")
+    subparsers.add_parser('family1',
+                          help="Aile 1 — Science & patent weekly scan")
+    subparsers.add_parser('family2',
+                          help="Aile 2 — Infrastructure launches weekly scan")
+    subparsers.add_parser('scorer_audit',
+                          help="Monthly scorer drift audit")
+
     # Layer A — Dünya Tomografisi (weekly Friday)
     subparsers.add_parser('tomography',
                           help="Layer A — weekly Dünya Tomografisi")
@@ -947,6 +1003,10 @@ def main():
         'tomography': cmd_tomography,
         'theses': cmd_theses,
         'candidates': cmd_candidates,
+        'family5': cmd_family5,
+        'family1': cmd_family1,
+        'family2': cmd_family2,
+        'scorer_audit': cmd_scorer_audit,
         'score': cmd_score,
         'evolve': cmd_evolve,
         'generate': cmd_generate,

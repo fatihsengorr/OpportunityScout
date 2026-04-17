@@ -1,0 +1,220 @@
+# Wildcatter Aile 5 — Maliyet Eğrileri Tracker
+# Kaynak: Open Brain → intelligence/wildcatter/sources (Aile 5)
+#
+# Felsefe: "Bir fırsatın ne zaman mümkün olduğu çoğu kez maliyet eğrisinin
+# nereye geldiği ile belirlenir. Bir şey geçen yıl mümkün değildi, bu yıl
+# mümkün — fırsat penceresi yeni açılmış demektir."
+#
+# Her metrik için %20+ düşüş = Katman A'ya otomatik giriş (maliyet kırılması sinyali)
+
+metrics:
+
+  # ─── API Fiyatları ─────────────────────────────────────────
+  # Kaynak: OpenAI, Anthropic, Google AI blog + fiyatlandırma sayfaları
+
+  - id: "openai_gpt4"
+    category: "api"
+    name: "OpenAI GPT-4 API (per 1M input tokens)"
+    current_usd: 2.50  # Son bilinen değer (2026 Q1)
+    baseline_usd: 30.00  # 2023 lansman fiyatı
+    check_url: "https://openai.com/api/pricing/"
+    check_frequency: "weekly"
+    alert_threshold_pct: 20
+
+  - id: "anthropic_sonnet"
+    category: "api"
+    name: "Claude Sonnet API (per 1M input tokens)"
+    current_usd: 3.00
+    baseline_usd: 15.00
+    check_url: "https://www.anthropic.com/pricing"
+    check_frequency: "weekly"
+    alert_threshold_pct: 20
+
+  - id: "anthropic_opus"
+    category: "api"
+    name: "Claude Opus API (per 1M input tokens)"
+    current_usd: 15.00
+    baseline_usd: 75.00
+    check_url: "https://www.anthropic.com/pricing"
+    check_frequency: "weekly"
+    alert_threshold_pct: 20
+
+  - id: "gemini_flash"
+    category: "api"
+    name: "Gemini 2.5 Flash API (per 1M input tokens)"
+    current_usd: 0.15
+    baseline_usd: 0.50
+    check_url: "https://ai.google.dev/pricing"
+    check_frequency: "weekly"
+    alert_threshold_pct: 30
+
+  # ─── Donanım ───────────────────────────────────────────────
+
+  - id: "nvidia_h100_hourly"
+    category: "hardware"
+    name: "NVIDIA H100 GPU (hourly cloud rental)"
+    current_usd: 2.80
+    baseline_usd: 8.00
+    check_sources: ["Lambda Labs", "RunPod", "Together.ai"]
+    check_frequency: "monthly"
+    alert_threshold_pct: 20
+
+  - id: "ram_ddr5"
+    category: "hardware"
+    name: "DDR5 RAM (per GB)"
+    current_usd: 3.50
+    baseline_usd: 8.00
+    check_sources: ["Retail benchmark sites"]
+    check_frequency: "quarterly"
+    alert_threshold_pct: 25
+
+  # ─── Sensörler ─────────────────────────────────────────────
+
+  - id: "lidar_module"
+    category: "sensor"
+    name: "LIDAR module (consumer-grade, per unit)"
+    current_usd: 400
+    baseline_usd: 1500
+    check_sources: ["Hesai", "Velodyne", "Ouster"]
+    check_frequency: "quarterly"
+    alert_threshold_pct: 25
+
+  - id: "iot_sensor_generic"
+    category: "sensor"
+    name: "IoT sensor average (temp/humidity/motion)"
+    current_usd: 8
+    baseline_usd: 25
+    check_sources: ["Alibaba", "DigiKey"]
+    check_frequency: "quarterly"
+    alert_threshold_pct: 30
+
+  # ─── Lojistik ──────────────────────────────────────────────
+
+  - id: "drewry_container_index"
+    category: "logistics"
+    name: "Drewry World Container Index ($/40ft)"
+    current_usd: 3200  # 2026 Q1 değeri
+    baseline_usd: 1500  # 2019 pre-COVID baseline
+    check_url: "https://www.drewry.co.uk/supply-chain-advisors/supply-chain-expertise/world-container-index-assessed-by-drewry"
+    check_frequency: "weekly"
+    alert_threshold_pct: 20
+    # Bu metrikte artış da kritik — cross-border arbitraj kapanabilir
+    alert_both_directions: true
+
+  - id: "istanbul_london_air_cargo"
+    category: "logistics"
+    name: "IST-LHR air cargo ($/kg)"
+    current_usd: 3.20
+    baseline_usd: 5.00
+    check_frequency: "monthly"
+    alert_threshold_pct: 20
+    alert_both_directions: true
+
+  # ─── Enerji & Hammadde ─────────────────────────────────────
+
+  - id: "brent_oil"
+    category: "commodity"
+    name: "Brent Crude Oil ($/barrel)"
+    current_usd: 85
+    baseline_usd: 70
+    check_frequency: "weekly"
+    alert_threshold_pct: 20
+    alert_both_directions: true
+
+  - id: "natural_gas_ttf"
+    category: "commodity"
+    name: "TTF Natural Gas (EUR/MWh)"
+    current_usd: 42  # EUR olarak
+    baseline_usd: 20
+    check_frequency: "weekly"
+    alert_threshold_pct: 25
+    alert_both_directions: true
+
+  - id: "steel_hrc_uk"
+    category: "commodity"
+    name: "UK Hot-Rolled Coil Steel ($/tonne)"
+    current_usd: 680
+    baseline_usd: 550
+    check_frequency: "monthly"
+    alert_threshold_pct: 15
+    alert_both_directions: true
+    relevance: "Coil coating + intumescent için temel girdi"
+
+  - id: "aluminum_lme"
+    category: "commodity"
+    name: "Aluminium LME ($/tonne)"
+    current_usd: 2400
+    baseline_usd: 2000
+    check_frequency: "monthly"
+    alert_threshold_pct: 15
+    alert_both_directions: true
+
+  - id: "copper_lme"
+    category: "commodity"
+    name: "Copper LME ($/tonne)"
+    current_usd: 9200
+    baseline_usd: 7500
+    check_frequency: "monthly"
+    alert_threshold_pct: 15
+    alert_both_directions: true
+
+  - id: "lithium_carbonate"
+    category: "commodity"
+    name: "Lithium Carbonate ($/tonne)"
+    current_usd: 14000
+    baseline_usd: 25000
+    check_frequency: "monthly"
+    alert_threshold_pct: 20
+    alert_both_directions: true
+    relevance: "EV/battery pazarı için temel"
+
+# ─── Alert Rules ───────────────────────────────────────────
+
+alert_rules:
+  # %20+ düşüş = Layer A tomografiye giriş
+  price_drop_threshold_pct: 20
+  price_rise_threshold_pct: 25  # Artış alarmı için daha yüksek eşik
+
+  # Çapraz alarm: birden fazla korelasyonlu metrik aynı anda değişiyorsa
+  correlation_alarms:
+    - name: "Coil coating fırsat penceresi"
+      trigger: "steel_hrc_uk DOWN 15% AND natural_gas_ttf DOWN 15%"
+      implication: "Çelik + enerji maliyeti eş zamanlı düşüşü = Türk coil coating için fırsat penceresi"
+
+    - name: "EV/Battery ikinci patlama"
+      trigger: "lithium_carbonate DOWN 20% AND copper_lme STABLE"
+      implication: "Batarya maliyeti düşerken bakır stabil = EV kapasite yatırımı için pencere"
+
+    - name: "AI-unlock arbitraj"
+      trigger: "anthropic_sonnet DOWN 30% OR openai_gpt4 DOWN 30%"
+      implication: "AI token maliyeti dramatik düşüş = geçen yıl ekonomik olmayan SaaS modelleri bu yıl ekonomik"
+
+# ─── Synthesis Prompt Template ─────────────────────────────
+
+synthesis:
+  # Her tarama sonrası Claude'a bu prompt verilir
+  template: |
+    Aşağıdaki maliyet metrikleri güncellendi. Hangi fırsat pencereleri açılıyor?
+
+    DEĞİŞİMLER:
+    {changes}
+
+    KORELASYON ALARMLARI:
+    {correlations}
+
+    Fatih'in kombinasyonu (TR fabrika, UK entity, AI fluency) için bu değişimler
+    ne açıyor? En az 1, en fazla 3 spesifik fırsat sinyali çıkar. Her biri
+    Wildcatter Layer A'ya maddeleştirilebilir kalitede olsun.
+
+    SADECE JSON:
+    {{
+      "cost_signals": [
+        {{
+          "metric": "metric_id",
+          "change": "DOWN 25% to $X",
+          "window_opens": "Bu maliyet düşüşü şu işi ekonomik yapıyor: ...",
+          "fatih_angle": "Fatih'in kombinasyonu ile neden özel (1 cümle)",
+          "time_horizon": "6-12 ay pencere"
+        }}
+      ]
+    }}

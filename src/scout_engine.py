@@ -49,6 +49,10 @@ from .wow_threshold import WowThreshold
 from .wildcatter_mode1 import WildcatterMode1
 from .wildcatter_mode2 import WildcatterMode2
 from .wildcatter_layers import WildcatterLayers
+from .family5_cost_curves import CostCurvesTracker
+from .family1_science_scanner import ScienceScanner
+from .family2_infra_scanner import InfraLaunchScanner
+from .scorer_audit import ScorerAudit
 
 logger = logging.getLogger("scout.engine")
 
@@ -89,6 +93,10 @@ class ScoutEngine:
         self.mode2 = WildcatterMode2(self.config, self.kb, self.patterns, self.wow)
         self.layers = WildcatterLayers(self.config, self.kb, self.brain,
                                         self.patterns, self.wow)
+        self.family5 = CostCurvesTracker(self.config, self.kb)
+        self.family1 = ScienceScanner(self.config, self.kb)
+        self.family2 = InfraLaunchScanner(self.config, self.kb)
+        self.scorer_audit = ScorerAudit(self.config, self.kb, self.brain)
 
         # Initialize Intelligence Mesh event bus
         self.event_bus = EventBus(self.kb)
@@ -1092,6 +1100,86 @@ class ScoutEngine:
         msg += self.wow.format_full(result)
         await self.telegram.send_text(msg)
         return {"opportunity_id": opp_id, "wow": result}
+
+    # ─── Wildcatter Family Scanners ────────────────────────
+
+    async def run_family5(self) -> dict:
+        """Weekly cost curves scan (Aile 5)."""
+        result = self.family5.scan_weekly()
+        signals = result.get('signals', [])
+        correlations = result.get('correlations', [])
+        try:
+            if signals or correlations:
+                lines = [f"💰 *Cost Curves Scan — {len(signals)} signal*"]
+                for s in signals[:5]:
+                    lines.append(f"  • {s.get('headline', '?')}")
+                for c in correlations:
+                    lines.append(f"  🔗 {c.get('name')}: {c.get('implication', '')}")
+                await self.telegram.send_text("\n".join(lines))
+            else:
+                logger.info("💰 No cost signals this week")
+        except Exception as e:
+            logger.warning(f"Cost curves telegram failed: {e}")
+        return result
+
+    async def run_family1(self) -> dict:
+        """Weekly science & patent scan (Aile 1)."""
+        result = self.family1.scan_weekly()
+        total = result.get('total_findings', 0)
+        try:
+            by_cat = result.get('by_category', {})
+            summary = (
+                f"🔬 *Science & Patent Scan*\n"
+                f"{total} new findings this week:\n"
+            )
+            for cat, cnt in by_cat.items():
+                if cnt > 0:
+                    summary += f"  • {cat}: {cnt}\n"
+            await self.telegram.send_text(summary)
+        except Exception as e:
+            logger.warning(f"Science telegram failed: {e}")
+        return result
+
+    async def run_family2(self) -> dict:
+        """Weekly infrastructure launch scan (Aile 2)."""
+        result = self.family2.scan_weekly()
+        total = result.get('total_launches', 0)
+        try:
+            if total > 0:
+                lines = [f"🔌 *Infra Launches — {total} new primitives*"]
+                for launch in result.get('launches', [])[:5]:
+                    name = launch.get('primitive_name', '?')
+                    src = launch.get('source_name', '?')
+                    unlocks = launch.get('what_unlocks', '')[:100]
+                    lines.append(f"  • {name} ({src})")
+                    if unlocks:
+                        lines.append(f"    _{unlocks}_")
+                await self.telegram.send_text("\n".join(lines))
+        except Exception as e:
+            logger.warning(f"Infra telegram failed: {e}")
+        return result
+
+    async def run_scorer_audit(self) -> dict:
+        """Monthly scorer drift audit."""
+        result = self.scorer_audit.run_monthly_audit()
+        try:
+            if result.get('status') == 'complete':
+                drift = result.get('drift_detected', False)
+                verdict = result.get('verdict', '')
+                icon = '⚠️' if drift else '✅'
+                msg = (
+                    f"🔎 *Scorer Audit — {result.get('month', '?')}*\n"
+                    f"{icon} Drift: {'DETECTED' if drift else 'Clean'}\n\n"
+                    f"{verdict}\n"
+                )
+                if drift and result.get('recommendations'):
+                    msg += "\n*Öneriler:*\n"
+                    for r in result['recommendations'][:3]:
+                        msg += f"  • {r}\n"
+                await self.telegram.send_text(msg)
+        except Exception as e:
+            logger.warning(f"Audit telegram failed: {e}")
+        return result
 
     async def run_layer_a(self) -> dict:
         """Generate weekly Layer A — Dünya Tomografisi."""

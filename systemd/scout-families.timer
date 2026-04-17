@@ -1,0 +1,10 @@
+[Unit]
+Description=Wildcatter Families — Thursday 05:30 UTC (before Friday tomography)
+
+[Timer]
+OnCalendar=Thu *-*-* 05:30:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

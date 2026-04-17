@@ -1,0 +1,23 @@
+[Unit]
+Description=Wildcatter Families 5+1+2 — Weekly early-signal scanner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+EnvironmentFile=/opt/opportunity-scout/.env
+ExecStart=/bin/bash -c 'cd /opt/opportunity-scout && \
+  /opt/opportunity-scout/venv/bin/python -m src.cli family5 ; \
+  /opt/opportunity-scout/venv/bin/python -m src.cli family1 ; \
+  /opt/opportunity-scout/venv/bin/python -m src.cli family2'
+TimeoutStartSec=3600
+MemoryMax=512M
+Nice=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-families
+
+[Install]
+WantedBy=multi-user.target
