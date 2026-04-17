@@ -1,0 +1,149 @@
+# OpportunityScout — Vay (Wow) Eşiği: 5 Kriterli Fırsat Filtresi
+# Kaynak: Open Brain → intelligence/pattern-framework (Fatih'in "olgun girişimci filtresi")
+#
+# Her FIRE tier fırsat, ikinci bir kapıdan geçer: 5 kriterli Vay testi.
+# ≥4/5 geçen fırsat → VAY tier (FIRE'dan yukarı)
+#
+# Bu kriterler Fatih'in "47 yaşında, 2 çocuklu, Londra taşınma planı" bağlamında
+# hangi fırsatın kendisine 'vay' dedireceğini tanımlar. Kazanması yıllar süren kafa yapısı.
+
+criteria:
+
+  - id: 1
+    name: "Kapı (Platform play)"
+    short: "door"
+    description: |
+      Bu fırsat başarılırsa, sadece o iş değil, başka 5 işin daha kapısını açar mı?
+      Platform yapısı var mı, ya da tekil bir iş mi?
+    pass_question: |
+      Bu fırsatı kurduktan sonra, üzerine 3-5 farklı dikey/iş ekleyebilir mi?
+      Bir platform olma potansiyeli var mı yoksa tek-ürün mü?
+    positive_examples:
+      - "ThreadForge: Advisory + Platform + Delivery — 3 sütunlu flywheel"
+      - "SaaS platformu: bir vertical başarılı → 5 vertical daha açılır"
+      - "Compliance motoru: BSA → MEES → EPC → AI Act → CSRD"
+    negative_examples:
+      - "Tek seferlik satış (örn. bir restoran)"
+      - "Niche niche kalan, büyütülemeyen iş"
+
+  - id: 2
+    name: "Kıtlık (Scarcity of doers)"
+    short: "scarcity"
+    description: |
+      Bu fırsatı YAPABİLECEK dünyada kaç kişi var?
+      "Yapmayan" değil, "yapamayan" — gerçek kapasite kıtlığı.
+      Eğer <100 kişi ise ve Fatih o 100'ün içindeyse, çok değerli.
+    pass_question: |
+      Bu fırsat için gereken özel kombinasyon (beceri + altyapı + network + knowhow)
+      dünyada kaç kişide var? Fatih bunların içinde mi?
+    positive_examples:
+      - "ThreadForge Cross-Border: TR fabrika + UK pazarı + BIM + concordato knowhow — 5-10 kişi"
+      - "Coil coating + intumescent kimya + UK market access — dar kesişim"
+      - "Biotech arbitraj + TR üretim kapasitesi — çok nadir kombinasyon"
+    negative_examples:
+      - "Standart SaaS — binlerce rakip"
+      - "E-ticaret dropshipping — giriş engeli sıfır"
+
+  - id: 3
+    name: "Ölçek (Growth potential)"
+    short: "scale"
+    description: |
+      Tek-seferlik değil — büyümeye ve gelişmeye açık.
+      Recurring revenue veya ölçeklenebilir model var mı?
+      Lineer büyüyen (her müşteri için yeni zaman) işler bu kriterden düşer.
+    pass_question: |
+      Bu fırsat 10x büyüdüğünde Fatih'in zamanı 10x gerektirir mi?
+      Gelir müşteri sayısıyla değil, Fatih'in zamanıyla mı sınırlı?
+    positive_examples:
+      - "SaaS: MRR $1K → $100K, marjinal maliyet ~sıfır"
+      - "Platform + take rate: her tx kendiliğinden"
+      - "Lisans modeli: bir ürün, sınırsız birim"
+    negative_examples:
+      - "Saatlik danışmanlık (Fatih'in zamanı tavanı)"
+      - "Bir fit-out sözleşmesi (tekrarlanması için aynı eforu ister)"
+
+  - id: 4
+    name: "Sistemleşebilirlik (Wheel not rowing)"
+    short: "systematizable"
+    description: |
+      Bir kez doğru ayarlandıktan sonra Fatih'in gündelik müdahalesi olmadan
+      büyür mü? ÇARK mı, KÜREK mi? Otomatize edilebilir süreçler mi,
+      her gün elle çekilecek operasyon mu?
+    pass_question: |
+      Bu iş 18 ay sonrasına bakıldığında, Fatih'in gündelik karar vermesi
+      gerekmeyecek bir sisteme dönüşebilir mi?
+    positive_examples:
+      - "AI-driven süreçler, n8n automation, kendi kendine çalışan müşteri akışı"
+      - "Ekip + playbook ile operasyon yürütülebilir"
+      - "Platform doğal büyür (network effects)"
+    negative_examples:
+      - "Her satış Fatih'in kendi pazarlık ve ilgisi gerektirir"
+      - "Kritik kararlar sürekli CEO seviyesinde alınır"
+
+  - id: 5
+    name: "Rol (Builder not laborer)"
+    short: "role"
+    description: |
+      47 yaşında Fatih artık İNŞA EDEN değil, İNŞA EDENLERİ YÖNLENDİREN olmak istiyor.
+      Bu fırsat ona "sistem kurucu / kurucu" rolü mü, yoksa "işçi / hamal" rolü mü verir?
+      Olgun girişimcinin tercihi açıktır.
+    pass_question: |
+      Fatih bu fırsatta sistem mimarı + yönlendirici rolünde mi,
+      yoksa her gün iş yapan operatör rolünde mi olacak?
+    positive_examples:
+      - "Founder-CEO pozisyonu, stratejik karar ağırlıklı"
+      - "Ekip yöneterek büyüyen yapı"
+      - "Sermaye + strateji katmanında çalışma"
+    negative_examples:
+      - "Freelancer/consultant — sürekli proje işçiliği"
+      - "Tek kişilik küçük iş — Fatih her şeye bakacak"
+
+# ─── Vay Eşiği ─────────────────────────────────────────────
+
+thresholds:
+  # Kaç kriter geçerse VAY tier alır?
+  wow_pass_minimum: 4
+
+  # Kaç kriter geçerse "near-wow" (izlenir ama VAY değil)?
+  near_wow_minimum: 3
+
+  # Pre-requisite: Vay testine sadece FIRE tier fırsatlar girer
+  # (düşük-skorlu fırsatlar zaten elemeden geçmiş)
+  min_tier_for_evaluation: "FIRE"
+
+# ─── Scoring integration ──────────────────────────────────
+
+scoring:
+  # VAY tier'a terfi şartları:
+  # 1. Zaten FIRE tier (weighted_total ≥ 125 with pattern bonus)
+  # 2. Wow threshold ≥ 4/5 PASS
+  # 3. Verifiability ≥ 8/10 (Faz 1.3'ten)
+
+  # VAY tier minimum weighted_total:
+  vay_minimum_score: 140
+
+  # Telegram alert:
+  # FIRE → 🔥 standart alert
+  # VAY → 🌟 özel format + instant notification (escape tones)
+
+# ─── Yıllık hedef ─────────────────────────────────────────
+
+annual_target:
+  # Fatih'in "olgun girişimci filtresi" ne kadar sıkı olmalı?
+  min_vay_per_year: 3      # En az 3 VAY/yıl (boş yıl olmamalı)
+  max_vay_per_year: 5      # En fazla 5 VAY/yıl (gürültü olmamalı)
+  empty_quarter_tolerance: 1   # Yılda max 1 boş çeyrek kabul
+
+  # Eğer sistem bu aralığa düşmezse → kalibrasyon gerekir:
+  # - Az üretiyorsa: kriterler çok sıkı, ya pattern/verifiability threshold düşür
+  # - Çok üretiyorsa: kriterler gevşek, ya prompt sıkılaştır
+
+# ─── Pattern ile ilişki ───────────────────────────────────
+
+pattern_prerequisite:
+  # Vay testine girmek için pattern coverage minimum:
+  min_pattern_count: 5  # en az 5 pattern tetiklenmeli
+  # VEYA
+  pattern_7_plus_three: true  # Pattern #7 aktif + 3 başka pattern yeterli
+
+  # Bu "pattern + vay" zinciri Fatih'in filtresini iki kapıdan geçirir.

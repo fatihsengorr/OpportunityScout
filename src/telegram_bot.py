@@ -78,10 +78,13 @@ class TelegramNotifier:
     # ─── Alert Methods ──────────────────────────────────────
 
     async def send_fire_alert(self, opportunity: dict):
-        """Send instant alert for a FIRE-tier opportunity.
+        """Send FIRE or VAY alert (VAY is higher tier).
 
-        If a validation badge is present on the opportunity, include it in the alert.
+        If opportunity has _is_vay flag → 🌟 VAY alert format
+        Otherwise → 🔥 FIRE alert format
         """
+        is_vay = opportunity.get('_is_vay', False)
+
         scores = opportunity.get('scores', {})
         top_dims = self._escape_md(self._get_top_dimensions(scores, n=3))
         score_str = self._escape_md(str(opportunity.get('weighted_total', 0)))
@@ -92,11 +95,19 @@ class TelegramNotifier:
         val_badge = opportunity.get('_validation_badge')
         val_line = f"🔎 {self._escape_md(val_badge)}\n\n" if val_badge else ""
 
+        # VAY tier gets a more expressive header
+        if is_vay:
+            header = "🌟 *VAY OPPORTUNITY* \\— _yılda 3\\-5 tanesinden biri_"
+            tier_line = f"🌟 *VAY TIER* \\| Score: {score_str}/155"
+        else:
+            header = "🔥 *FIRE OPPORTUNITY DETECTED*"
+            tier_line = f"📊 *Score: {score_str}/155*"
+
         message = (
-            f"🔥 *FIRE OPPORTUNITY DETECTED*\n\n"
+            f"{header}\n\n"
             f"*{self._escape_md(opportunity.get('title', 'Unknown'))}*\n\n"
             f"_{self._escape_md(opportunity.get('one_liner', ''))}_\n\n"
-            f"📊 *Score: {score_str}/155*\n"
+            f"{tier_line}\n"
             f"🏆 Top: {top_dims}\n"
             f"{val_line}"
             f"⏰ *Why NOW:*\n{self._escape_md(opportunity.get('why_now', 'N/A'))}\n\n"
@@ -453,6 +464,9 @@ class TelegramNotifier:
                 "/consensus OPP-XXX — 2nd-opinion score (Gemini vs Claude)\n\n"
                 "📡 *External Signals*\n"
                 "/signals — Scan Google Jobs (hiring) + Crunchbase (funding)\n\n"
+                "🧬 *Wildcatter Filters*\n"
+                "/patterns OPP-XXX — Fatih'in 7 pattern envanteri\n"
+                "/wow OPP-XXX — Vay eşiği (5 kriter — VAY tier'a terfi kapısı)\n\n"
                 "/help — Show this message"
             )
             await update.message.reply_text(msg)
@@ -706,6 +720,48 @@ class TelegramNotifier:
                     "(Set SERPAPI_KEY env var to enable Google Jobs.)"
                 )
 
+        async def cmd_patterns(update: Update, context):
+            """Evaluate Fatih's 7 pattern inventory."""
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/patterns OPP-XXX`\n"
+                    "Fatih'in 7 pattern envanterini fırsata uygular (Aşinalık Arbitrajı, Delta İntoleransı, Kesişim Oturma, Derin Öğrenme, Altyapı Sahipliği, Kayıptan Koruma, Taahhüt-Önce).\n"
+                    "~15 saniye, ~$0.03.",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            await update.message.reply_text(
+                f"🧬 Pattern envanteri için `{opp_id}` analiz ediliyor... 15s.",
+                parse_mode='Markdown'
+            )
+            result = await scout_engine.run_pattern_match(opp_id)
+            if result.get('error'):
+                await update.message.reply_text(f"❌ {result['error']}")
+
+        async def cmd_wow(update: Update, context):
+            """Evaluate Vay (Wow) threshold — 5 criteria."""
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/wow OPP-XXX`\n"
+                    "Vay eşiği 5 kriter: Kapı, Kıtlık, Ölçek, Sistemleşebilirlik, Rol.\n"
+                    "Sadece FIRE tier + güçlü pattern'lı fırsatlar değerlendirilir. "
+                    "≥4/5 geçen = VAY tier.\n"
+                    "~20 saniye, ~$0.03.",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            await update.message.reply_text(
+                f"🌟 Vay eşiği için `{opp_id}` değerlendiriliyor... 20s.",
+                parse_mode='Markdown'
+            )
+            result = await scout_engine.run_wow_eval(opp_id)
+            if result.get('error'):
+                await update.message.reply_text(f"❌ {result['error']}")
+
         async def cmd_consensus(update: Update, context):
             """Get 2nd-opinion score on an opportunity."""
             args = context.args
@@ -897,6 +953,8 @@ class TelegramNotifier:
         app.add_handler(CommandHandler("validate", cmd_validate))
         app.add_handler(CommandHandler("consensus", cmd_consensus))
         app.add_handler(CommandHandler("signals", cmd_signals))
+        app.add_handler(CommandHandler("patterns", cmd_patterns))
+        app.add_handler(CommandHandler("wow", cmd_wow))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
         app.add_handler(CallbackQueryHandler(on_feedback_button, pattern="^fb:"))

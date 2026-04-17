@@ -97,6 +97,44 @@ async def cmd_deep_dive(args):
     print(json.dumps(result, indent=2, default=str))
 
 
+async def cmd_patterns(args):
+    """Evaluate 7 pattern inventory for an opportunity."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_pattern_match(args.opp_id)
+    if result.get('error'):
+        print(f"❌ Error: {result['error']}")
+    else:
+        p = result.get('patterns', {})
+        print(f"\n✅ Pattern match for {args.opp_id}")
+        print(f"  Count: {p.get('count', 0)}/7")
+        print(f"  Verdict: {p.get('verdict', '?')}")
+        print(f"  Bonus: ×{p.get('bonus_multiplier', 1.0)}")
+        for pat in p.get('patterns', []):
+            icon = '✅' if pat['matched'] else '❌'
+            print(f"  {icon} P{pat['id']}. {pat['name']} ({pat['confidence']:.0%})")
+
+
+async def cmd_wow(args):
+    """Evaluate 5-criterion Vay (Wow) threshold."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_wow_eval(args.opp_id)
+    if result.get('error'):
+        print(f"❌ Error: {result['error']}")
+    else:
+        w = result.get('wow', {})
+        if not w.get('eligible'):
+            print(f"\n○ Not eligible for wow evaluation: {w.get('reason', 'ineligible')}")
+        else:
+            print(f"\n✅ Wow threshold for {args.opp_id}")
+            print(f"  Pass count: {w.get('pass_count', 0)}/5")
+            print(f"  Verdict: {w.get('verdict', '?')}")
+            for c in w.get('criteria', []):
+                icon = '✅' if c['pass'] else '❌'
+                print(f"  {icon} {c['name']} ({c['confidence']:.0%})")
+
+
 async def cmd_signals(args):
     """Scan external signal sources (Google Jobs, Crunchbase)."""
     from .scout_engine import ScoutEngine
@@ -710,6 +748,16 @@ def main():
     subparsers.add_parser('signals',
                           help='Scan external signals (hiring, funding)')
 
+    # Patterns — 7 pattern inventory evaluation
+    pat_parser = subparsers.add_parser('patterns',
+                                        help="Evaluate Fatih's 7 pattern inventory")
+    pat_parser.add_argument('opp_id', type=str, help='Opportunity ID')
+
+    # Wow — 5-criterion Vay threshold
+    wow_parser = subparsers.add_parser('wow',
+                                        help='Evaluate Vay (Wow) threshold for FIRE candidate')
+    wow_parser.add_argument('opp_id', type=str, help='Opportunity ID')
+
     # Score
     score_parser = subparsers.add_parser('score', help='Score a business idea')
     score_parser.add_argument('idea', type=str)
@@ -811,6 +859,8 @@ def main():
         'validate': cmd_validate,
         'consensus': cmd_consensus,
         'signals': cmd_signals,
+        'patterns': cmd_patterns,
+        'wow': cmd_wow,
         'score': cmd_score,
         'evolve': cmd_evolve,
         'generate': cmd_generate,

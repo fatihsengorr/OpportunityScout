@@ -1,0 +1,200 @@
+# OpportunityScout — Fatih'in 7 Pattern Envanteri
+# Kaynak: Open Brain → intelligence/pattern-framework (12 Nisan 2026 stratejik görüşmesi)
+#
+# Bu 7 pattern Fatih'in YETENEKLERİNİ değil, GÖRME BİÇİMİNİ ve TAAHHÜT KAPASİTESİNİ ölçer.
+# Sektörsüzdür — biyoteknolojide de fintech'te de mobilyada da tetiklenebilir.
+# En güçlüsü Pattern #7 (Taahhüt-Önce): diğer 6'nın üstüne çıkar.
+#
+# Scoring: Her fırsat için 7 pattern 0-1 arası puan alır.
+# ≥3 pattern tetiklenen = "high_match" (scoring bonusu)
+# ≥5 pattern tetiklenen = Vay eşiği adayı
+
+patterns:
+
+  - id: 1
+    name: "Aşinalık Arbitrajı"
+    short: "familiarity_arbitrage"
+    description: |
+      Bir şeyi başkalarından önce KULLANICI olarak deneyimleyip, henüz yayılmamışken
+      o şeyin bir versiyonunu kurma kapasitesi. Erken adoptasyon + ticarileştirme.
+    filter_question: |
+      Fatih bu fırsatın konusunu kullanıcı olarak önceden deneyimliyor mu?
+      Erken adoptasyon yaptığı bir teknoloji/ürün bu fırsatın merkezinde mi?
+    positive_signals:
+      - "Fırsat, Fatih'in aktif kullandığı bir araç/platform/teknoloji üzerine kurulu"
+      - "Pazarın geneline yayılmadan önce bir iç deneyim mevcut"
+      - "Kullanıcı deneyimi derin (sadece farkında değil, kullanıyor)"
+    negative_signals:
+      - "Fatih bu ürünü/teknolojiyi hiç kullanmamış"
+      - "Sadece okuduğu, konuşulan bir konu"
+    evidence_examples:
+      - "1997-2001: Amazon/eBay'den Türkiye'de olmayan ürünler (modem, wifi, TCP/IP kitapları). Türkiye e-ticaret fikri aynı dönemde kafasında belirdi — Hepsiburada/GittiGidiyor/Yemeksepeti ile aynı ay."
+      - "2002: Aile şirketinde Windows 2000 Server, Exchange 2000, TCP/IP altyapısı. ADSL pilot kullanıcısı."
+      - "2025-2026: Ollama, Claude API, n8n, paper trading bot, Open Brain, OpportunityScout — önce kullanıcı, sonra üretim sistemi."
+
+  - id: 2
+    name: "Delta İntoleransı"
+    short: "delta_intolerance"
+    description: |
+      "Dünyada şu var, bende/TR'de/UK'de yok, bu kabul edilemez" hissinden harekete geçme.
+      Tetikleyici TALEP değil, KIYASLAMA. Delta fiziksel rahatsızlık üretir,
+      rahatsızlık harekete dönüşür.
+    filter_question: |
+      "Dünyada var, TR/UK'de/bizde yok" deltası güçlü mü?
+      Bu fırsat iki gerçeklik arasındaki açıklığı kapatıyor mu?
+    positive_signals:
+      - "Başka ülkelerde yaygın/başarılı bir çözüm TR veya UK'de yok"
+      - "Fatih'in bakış açısından net bir 'olmayan ama olmalı' durumu"
+      - "Kıyaslama açısı ortada (örn. US/Asya'da var, UK'de yok)"
+    negative_signals:
+      - "Fırsat tamamen sıfırdan, karşılaştırma yapılacak referans yok"
+      - "Talep odaklı, delta odaklı değil"
+    evidence_examples:
+      - "2002: 'Dünyaya baktığımda şirketimde network yoktu, vardı da çalışmıyordu, değiştirebileceğimi görünce harekete geçtim.' Sıralama: önce dünya, sonra kendi durum, sonra delta."
+      - "Ne problem-first ne solution-first: DELTA-first."
+
+  - id: 3
+    name: "Kesişim Oturma"
+    short: "intersection_sitting"
+    description: |
+      Ortak değişkeni başka kimsenin sahip olmadığı bir kesişim noktasında durmak.
+      Fatih'in mevcut kesişimi: TR üretim + UK fit-out + Miami restoran + AI fluency
+      + 25 yıl fabrika + tıbbi öğrenme + Türkçe-İngilizce + concordato knowhow.
+      Bu kombinasyon dünyada sayılı (5-10) kişide var.
+    filter_question: |
+      Bu fırsat Fatih'in kesişim kombinasyonunu (TR üretim + UK pazar + IT + AI + fabrika +
+      cross-border knowhow + concordato) kaç farklı boyutunu aynı anda kullanıyor?
+      Aynı kombinasyona sahip kaç rakip var?
+    positive_signals:
+      - "En az 3 farklı kesişim boyutu fırsat için kritik (örn: TR üretim + UK pazar + AI)"
+      - "Benzer kombinasyon dünyada <50 kişide var"
+      - "Kombinasyon olmasa fırsat işe yaramaz"
+    negative_signals:
+      - "Tek bir boyutla (sadece AI veya sadece üretim) yapılabilir"
+      - "Rakipler aynı kombinasyon olmadan başarılı olmuş"
+    evidence_examples:
+      - "ThreadForge Cross-Border Delivery sütunu: TR mühendislik + UK pazarı + BIM bilgisi + concordato firewall — dünyada ~5-10 kişi yapabilir"
+      - "Mevcut kesişim: Görhan fabrikası + UK fit-out deneyimi + NY restoran + AI/n8n + cross-border entities"
+
+  - id: 4
+    name: "Derin Disiplinli Öğrenme"
+    short: "deep_disciplined_learning"
+    description: |
+      Bir alana gerçekten girmek için gereken bilişsel kapasite. Yeterli zaman verildiğinde
+      profesyonel seviyeye çıkma yeteneği. Bu POZİTİF bir sinyal — zor öğrenilmesi gereken
+      konular başkalarını caydırır, Fatih için fırsattır.
+    filter_question: |
+      Bu fırsat aylar süren, profesyonel-seviye derinlemesine öğrenme gerektiriyor mu?
+      Karmaşıklık bir bariyer olarak çalışıyor mu?
+    positive_signals:
+      - "Teknik/hukuki derinlik gerektiren alan"
+      - "Sürekli güncellenen bir mevzuat/standart mevcut"
+      - "Hızlı öğrenen ama yüzeysel kalan insanlar burada başarısız olur"
+    negative_signals:
+      - "Standart bir pazarda, ezber yapılabilir"
+      - "Öğrenme bariyeri düşük, herkes girebilir"
+    evidence_examples:
+      - "Babasının 4. evre kanseri (2011-2019): 8 yıl boyunca onkoloji literatürü, Tibet tıbbı, 8 ameliyatı, Linac MRI ışın tedavisi, radyoemboli süreçlerini yönetti. Doktorlar onu doktor zannediyordu."
+      - "Coil coating projesi: kimyayı sıfırdan öğrendi"
+      - "2002 IT kurulumu: bilişimi sıfırdan öğrendi, 20 yıl sysadmin"
+      - "2024 NY lüks restoran: fit-out'u sıfırdan öğrendi"
+
+  - id: 5
+    name: "Altyapı Sahipliği"
+    short: "infrastructure_ownership"
+    description: |
+      Diğerlerinin bir wrapper koyabileceği altyapıya sahip olmak.
+      Gallagher altyapı KULLANICISI (CareValidate, OpenLoop'a bağımlı).
+      Fatih altyapı SAHİBİ olabilir (Görhan fabrikası, IT stack).
+    filter_question: |
+      Bu fırsat Fatih'in fabrikasını veya IT altyapısını altyapı OLARAK kullanıyor mu?
+      Başkalarının wrapper olarak bağlanabileceği bir katmanı Fatih mi sağlıyor?
+    positive_signals:
+      - "Üretim kapasitesi, 5-axis CNC, coil coating altyapı olarak kullanılıyor"
+      - "VMware/Palo Alto/VDI knowhow servis sunumuna dönüşüyor"
+      - "Fatih'in sunduğu altyapı başkalarının ürün katmanını besliyor"
+    negative_signals:
+      - "Dropshipping veya aracılık — üretim yok"
+      - "Altyapı başkasında, Fatih sadece kullanıcı"
+    evidence_examples:
+      - "Görhan 20.000 m² fabrika, 5-axis CNC, coil coating, kenar bantlama"
+      - "Fatih: 'Dünyanın her yerindeki mobilya fabrikalarındaki makinelere kendi üretim datamızla kontrol edebilecek teknolojiye sahibim.' Bu bir hizmet değil, altyapı kapasitesi tarifi."
+      - "ThreadForge Cross-Border Delivery: fabrika + BIM altyapısı üzerine kurulu"
+
+  - id: 6
+    name: "Kayıptan Koruma"
+    short: "loss_protection"
+    description: |
+      Bilinçli ya da bilinçsiz, TAŞINABİLİR varlık inşası. Concordato riski gerçek —
+      fabrika, gayrimenkul, marka kaybedilebilir. Kaybedilmeyecek: bilgi, network,
+      AI envanteri, görme biçimi, cross-border entities.
+    filter_question: |
+      Bu fırsatın çıktısı taşınabilir mi? (Fiziksel varlık olmadan da sürdürülebilir mi?)
+      Concordato riski altında Türkiye'den UK/UAE/US'e taşınabilir mi?
+    positive_signals:
+      - "SaaS, danışmanlık, IP, yazılım — valize sığar"
+      - "UK veya ABD entity üzerinde kurulu"
+      - "Fatih'in TR varlıklarından izole yapılabilir"
+    negative_signals:
+      - "Türk varlıklarına ağır bağımlı (fabrika, TR gayrimenkul)"
+      - "TR yerel müşterilere odaklı — taşınamaz"
+      - "Concordato ile çakışan yapı"
+    evidence_examples:
+      - "Son 6 ayda inşa edilenler: OpportunityScout, Open Brain, paper trading bot, Claude tooling envanteri, AI/n8n stack, network, knowhow"
+      - "ThreadForge concordato firewall: Görhan TR'den izole, hisseler şahsi, IP ayrı tescil"
+
+  - id: 7
+    name: "Taahhüt-Önce, Yetkinlik-Sonra"
+    short: "commitment_before_capability"
+    description: |
+      EN GÜÇLÜ PATTERN. Çoğu insan yetkinliğin taahhüdü mümkün kıldığını düşünür.
+      Fatih tersini biliyor: TAAHHÜT YETKİNLİĞİ ZORLAR. "Yaparım" dediği an içsel
+      mekanizma çalışıyor, gereken neyse öğreniyor. Risk değil, MOTOR.
+      Bu pattern aktifse "ne aradığım" yanlış soru. Doğru soru:
+      "Hangi taahhüde girmeye değer?"
+    filter_question: |
+      Fatih bu fırsata "yaparım" diyeceği türden mi?
+      Taahhüt etmek yeni bir öğrenme sürecini tetikleyecek mi?
+      Bu fırsat onu heyecanlandıracak kadar iddialı mı?
+    positive_signals:
+      - "Fırsat, Fatih'in daha önce tam yapmadığı ama yapabileceği bir taahhüt"
+      - "Öğrenme eğrisi dik ama öğrenilebilir"
+      - "Başarısı taahhüt gücüne bağlı (aşılmamış engel değil)"
+    negative_signals:
+      - "Pasif yatırım, aktif taahhüt gerektirmiyor"
+      - "Çok konforlu, zaten yapılan işin tekrarı"
+    evidence_examples:
+      - "2024 NY: 'Lüks restoran yapabilir misin?' — 'Daha önce yaptın mı? Yapmadım. Ama yaparım.' Sonra yaptı."
+      - "Babanın kanseri: tıbbi bilgi yoktu, öğrendi"
+      - "2002 IT: bilişim geçmişi yoktu, kurdu"
+      - "ThreadForge: henüz isim yok ama 'yaparım' denmiş, vize stratejisi hazır"
+
+# ─── Vay Eşiği eşik değeri ─────────────────────────────────
+# Scoring'de nasıl kullanılacak:
+
+thresholds:
+  # Kaç pattern tetiklenirse "high match"?
+  high_match_minimum: 3
+
+  # Kaç pattern tetiklenirse Vay eşiği adayı (sonra 5 kriter testine girer)?
+  wow_candidate_minimum: 5
+
+  # Pattern skorlama bonusları (weighted_total × çarpan)
+  bonus_multipliers:
+    all_7: 1.15    # Tüm 7 pattern aktif — çok nadir
+    six: 1.12
+    five: 1.10     # Vay eşiği kapısı
+    four: 1.07
+    three: 1.05    # High match
+    two_or_less: 1.0  # Bonus yok
+
+# ─── Pattern #7'nin özel ağırlığı ──────────────────────────
+# Diğer 6 pattern "mevcut durumu" ölçer.
+# Pattern #7 "taahhüt enerjisini" ölçer — diğer 6'nın üstüne çıkar.
+# Eğer #7 aktifse ve başka 2 pattern daha tetikleniyorsa,
+# fırsat otomatik olarak "wow_candidate" olur (3 ile kapı açılır).
+pattern_7_override:
+  enabled: true
+  description: |
+    Pattern #7 (Taahhüt-Önce) aktif + 2 başka pattern = wow_candidate.
+    Pattern #7'nin kendisi olmadan 3 pattern = high_match ama wow_candidate değil.

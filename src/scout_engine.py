@@ -44,6 +44,8 @@ from .financial_modeler import FinancialModeler
 from .claim_validator import ClaimValidator
 from .consensus_scorer import ConsensusScorer
 from .signal_scanner import SignalScanner
+from .pattern_matcher import PatternMatcher
+from .wow_threshold import WowThreshold
 
 logger = logging.getLogger("scout.engine")
 
@@ -78,6 +80,8 @@ class ScoutEngine:
         self.validator = ClaimValidator(self.config, self.kb)
         self.consensus = ConsensusScorer(self.config, self.kb)
         self.signals = SignalScanner(self.config, self.kb)
+        self.patterns = PatternMatcher(self.config, self.kb)
+        self.wow = WowThreshold(self.config, self.kb)
 
         # Initialize Intelligence Mesh event bus
         self.event_bus = EventBus(self.kb)
@@ -947,43 +951,140 @@ class ScoutEngine:
     # ─── Claim Validation ─────────────────────────────────────
 
     async def _send_fire_alert_with_validation(self, opp: dict):
-        """Run claim validation + consensus check before sending FIRE alert.
+        """Full Wildcatter pipeline before FIRE alert:
 
-        On any failure, alert is still sent (with '?' badge).
+            Pattern envanteri (7 pattern) →
+            Wow threshold (5 kriter, if FIRE + patterns strong) →
+            Verifiability (Hassabis insight) →
+            Claim validation (Haiku + web search) →
+            Consensus scoring (Gemini Flash blind)
+
+        If Wow threshold passes → VAY tier (sends special 🌟 alert instead of 🔥)
         """
         badges = []
+        opp_id = opp.get('id')
 
-        # 1. Claim validation (Haiku + web search)
+        # 1. Pattern Envanteri Filter (7 pattern)
+        pattern_result = None
         try:
-            validation = self.validator.validate(opp)
-            badges.append(self.validator.format_badge(validation))
-            if validation.get('status') == 'disputed':
-                logger.warning(
-                    f"🔎 DISPUTED CLAIMS in {opp.get('id')}: "
-                    f"{len(validation.get('flags', []))} issues"
-                )
+            pattern_result = self.patterns.match_and_save(opp_id, opp) if opp_id \
+                              else self.patterns.match(opp)
+            badges.append(self.patterns.format_summary(pattern_result))
+            # Store back on opp for wow threshold access
+            opp['pattern_matches_json'] = pattern_result
+            opp['pattern_count'] = pattern_result.get('count', 0)
         except Exception as e:
-            logger.warning(f"Validation skipped for {opp.get('id')}: {e}")
+            logger.warning(f"Pattern match skipped for {opp_id}: {e}")
+            badges.append("○ patterns N/A")
+
+        # 2. Wow Threshold — only if patterns are strong enough
+        is_vay = False
+        wow_result = None
+        if pattern_result and pattern_result.get('verdict') in ('wow_candidate', 'high_match'):
+            try:
+                wow_result = self.wow.evaluate_and_save(opp_id, opp) if opp_id \
+                              else self.wow.evaluate(opp)
+                badges.append(self.wow.format_badge(wow_result))
+                if wow_result.get('verdict') == 'VAY':
+                    is_vay = True
+                    logger.info(f"🌟 VAY tier opportunity: {opp_id}")
+            except Exception as e:
+                logger.warning(f"Wow eval skipped for {opp_id}: {e}")
+
+        # 3. Claim Validation (Haiku + web search, includes verifiability score)
+        validation_result = None
+        try:
+            validation_result = self.validator.validate(opp)
+            badges.append(self.validator.format_badge(validation_result))
+            if validation_result.get('status') == 'disputed':
+                logger.warning(f"🔎 DISPUTED CLAIMS in {opp_id}")
+            # VAY tier requires verifiability_score ≥ 8
+            verif_score = validation_result.get('verifiability_score', 5)
+            if is_vay and verif_score < 8:
+                logger.warning(
+                    f"🌟 {opp_id} was VAY candidate but verifiability={verif_score}/10 "
+                    f"(min 8 required) — downgraded to FIRE"
+                )
+                is_vay = False
+        except Exception as e:
+            logger.warning(f"Validation skipped for {opp_id}: {e}")
             badges.append("❓ not validated")
 
-        # 2. Consensus check (Gemini Flash blind re-score)
+        # 4. Consensus check (Gemini Flash blind re-score)
         try:
             consensus = self.consensus.check_consensus(opp)
             badges.append(self.consensus.format_badge(consensus))
-            # If disputed and secondary disagrees strongly, log and possibly downgrade
-            if consensus.get('disputed'):
-                secondary = consensus.get('secondary', {}) or {}
-                if secondary.get('tier') in ('LOW', 'MEDIUM'):
-                    logger.warning(
-                        f"🧮 Secondary DOWNGRADED {opp.get('id')} "
-                        f"from {opp.get('tier')} to {secondary.get('tier')}"
-                    )
         except Exception as e:
-            logger.warning(f"Consensus skipped for {opp.get('id')}: {e}")
+            logger.warning(f"Consensus skipped for {opp_id}: {e}")
             badges.append("⚪ consensus N/A")
 
+        # Attach validation badge
         opp['_validation_badge'] = " · ".join(badges)
-        await self.telegram.send_fire_alert(opp)
+
+        # Send the right alert type
+        if is_vay:
+            # Override tier to VAY for alert rendering
+            opp['tier'] = 'VAY'
+            opp['_is_vay'] = True
+            await self.telegram.send_fire_alert(opp)  # Same method, will check _is_vay flag
+        else:
+            await self.telegram.send_fire_alert(opp)
+
+    async def run_pattern_match(self, opp_id: str) -> dict:
+        """Evaluate Fatih's 7 pattern inventory for an opportunity."""
+        cursor = self.kb.conn.cursor()
+        cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            await self.telegram.send_text(f"❌ `{opp_id}` not found.")
+            return {"error": "not_found"}
+        opp = dict(row)
+
+        try:
+            result = self.patterns.match_and_save(opp_id, opp)
+        except Exception as e:
+            logger.error(f"Pattern match failed: {e}")
+            await self.telegram.send_text(f"❌ Pattern match failed: {e}")
+            return {"error": str(e)}
+
+        msg = f"🧬 *Pattern Envanteri — {opp.get('title', '?')[:60]}*\n"
+        msg += f"`{opp_id}`\n\n"
+        msg += self.patterns.format_full(result)
+        await self.telegram.send_text(msg)
+        return {"opportunity_id": opp_id, "patterns": result}
+
+    async def run_wow_eval(self, opp_id: str) -> dict:
+        """Evaluate 5-criterion Vay (Wow) threshold for an opportunity."""
+        cursor = self.kb.conn.cursor()
+        cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            await self.telegram.send_text(f"❌ `{opp_id}` not found.")
+            return {"error": "not_found"}
+        opp = dict(row)
+
+        # Ensure pattern match exists first
+        if not opp.get('pattern_matches_json'):
+            try:
+                self.patterns.match_and_save(opp_id, opp)
+                # Reload
+                cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+                opp = dict(cursor.fetchone())
+            except Exception as e:
+                logger.warning(f"Pattern prerequisite failed: {e}")
+
+        try:
+            result = self.wow.evaluate_and_save(opp_id, opp)
+        except Exception as e:
+            logger.error(f"Wow eval failed: {e}")
+            await self.telegram.send_text(f"❌ Wow eval failed: {e}")
+            return {"error": str(e)}
+
+        msg = f"🌟 *Vay Eşiği — {opp.get('title', '?')[:60]}*\n"
+        msg += f"`{opp_id}`\n\n"
+        msg += self.wow.format_full(result)
+        await self.telegram.send_text(msg)
+        return {"opportunity_id": opp_id, "wow": result}
 
     async def run_consensus(self, opp_id: str) -> dict:
         """Manually trigger consensus check on an opportunity."""

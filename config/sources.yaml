@@ -1,8 +1,14 @@
-# OpportunityScout — Source Registry
+# OpportunityScout — Source Registry (Wildcatter Audit 2026-04-17)
 # Each source has: name, type, url/query, tier, sector tags, signal_score (evolves over time)
 #
-# Distribution: Tier 1 = 20 (daily) | Tier 2 = 38 (weekly) | Tier 3 = 28 (monthly) | Total = 86
-# API cost target: Tier 1 ~$0.50/day (web_search + RSS/API)
+# After Wildcatter audit: 8 low-value sources dropped. Remaining: 78 sources.
+# Dropped: UK Franchise, AI Solo Founder, Trade Shows, Innovate UK Digital Construction,
+#          UK E-commerce DTC, UK Energy & Cleantech, r/UKBusiness, r/entrepreneur
+# Distribution: Tier 1 = 17 (daily) | Tier 2 = 35 (weekly) | Tier 3 = 26 (monthly) | Total = 78
+# API cost target: Tier 1 ~$0.40/day (web_search + RSS/API)
+#
+# Next phase: Add Family 5 (cost curves), Family 1 (arXiv/bioRxiv/TürkPatent),
+# Family 2 (Anthropic/OpenAI/Stripe/Cloudflare changelogs).
 
 sources:
 
@@ -83,16 +89,7 @@ sources:
     scan_frequency: daily
 
   # ─── Reddit ───────────────────────────────────────────────
-  - name: "r/entrepreneur"
-    type: reddit
-    subreddit: "entrepreneur"
-    sort: "hot"
-    limit: 25
-    tier: 1
-    tags: [ideas, business-models, validation]
-    signal_score: 5
-    scan_frequency: daily
-
+  # DROPPED 2026-04-17 (Wildcatter audit): r/entrepreneur — too generic, noise-heavy
   - name: "r/SaaS"
     type: reddit
     subreddit: "SaaS"
@@ -103,15 +100,7 @@ sources:
     signal_score: 6
     scan_frequency: daily
 
-  - name: "r/UKBusiness"
-    type: reddit
-    subreddit: "UKBusiness"
-    sort: "hot"
-    limit: 25
-    tier: 1
-    tags: [uk-business, market-signals]
-    signal_score: 5
-    scan_frequency: daily
+  # DROPPED 2026-04-17 (Wildcatter audit): r/UKBusiness — very low activity subreddit
 
   # ─── Web Search (max 5 in Tier 1) ────────────────────────
   - name: "UK Building Safety Act & Golden Thread"
@@ -146,13 +135,7 @@ sources:
     signal_score: 7
     scan_frequency: daily
 
-  - name: "AI Solo Founder Businesses"
-    type: web_search
-    query: "AI business solo founder making revenue profitable 2026 -course -ebook"
-    tier: 1
-    tags: [ai, business-ideas, solo-founder]
-    signal_score: 6
-    scan_frequency: daily
+  # DROPPED 2026-04-17 (Wildcatter audit): AI Solo Founder Businesses — too generic keyword
 
   # ─── Chemicals & Chemistry ────────────────────────────────
   - name: "Chemical Industry & Trade Trends"
@@ -305,13 +288,7 @@ sources:
     signal_score: 7
     scan_frequency: weekly
 
-  - name: "UK E-commerce & DTC Brands"
-    type: web_search
-    query: "UK e-commerce DTC brand Shopify Amazon FBA online retail growth 2026"
-    tier: 2
-    tags: [ecommerce, dtc, shopify, amazon-fba, uk-retail]
-    signal_score: 6
-    scan_frequency: weekly
+  # DROPPED 2026-04-17 (Wildcatter audit): UK E-commerce & DTC Brands — overlaps with Amazon FBA
 
   - name: "Product Hunt — AI & Automation"
     type: web_search
@@ -391,13 +368,7 @@ sources:
     scan_frequency: weekly
 
   # ─── Energy & Cleantech ──────────────────────────────────
-  - name: "UK Energy & Cleantech"
-    type: web_search
-    query: "UK battery storage solar hydrogen cleantech startup funding 2026"
-    tier: 2
-    tags: [energy, cleantech, battery, solar, hydrogen, uk]
-    signal_score: 7
-    scan_frequency: weekly
+  # DROPPED 2026-04-17 (Wildcatter audit): UK Energy & Cleantech — overlaps with UK BESS + UK Energy Storage & Hydrogen (Tier 3)
 
   # ─── Distressed Assets (all sectors) ─────────────────────
   - name: "UK Distressed Assets & Administrations"
@@ -443,13 +414,7 @@ sources:
     scan_frequency: weekly
 
   # ─── Franchise & Licensing ────────────────────────────────
-  - name: "UK Franchise Opportunities"
-    type: web_search
-    query: "UK franchise opportunity master licence new brand expansion 2026"
-    tier: 2
-    tags: [franchise, licensing, uk, business-model]
-    signal_score: 6
-    scan_frequency: weekly
+  # DROPPED 2026-04-17 (Wildcatter audit): UK Franchise Opportunities — franchise doesn't fit Fatih's patterns
 
   # ─── Commodities & Materials Pricing ─────────────────────
   - name: "Construction Materials & Commodities Pricing"
@@ -477,13 +442,7 @@ sources:
     signal_score: 8
     scan_frequency: weekly
 
-  - name: "Innovate UK — Digital Construction"
-    type: web_search
-    query: "Innovate UK funding BIM digital twin construction AI scan export 2026"
-    tier: 2
-    tags: [funding, innovate-uk, grants, bim, digital-twin, ktp]
-    signal_score: 9
-    scan_frequency: weekly
+  # DROPPED 2026-04-17 (Wildcatter audit): Innovate UK — Digital Construction — overlaps with "Innovate UK Funding Calls"
 
   # ─── Manufacturing Products & Hardware (NEW) ─────────────
   - name: "3D Printing & Additive Manufacturing"
@@ -657,13 +616,7 @@ sources:
     scan_frequency: monthly
 
   # ─── Events ───────────────────────────────────────────────
-  - name: "Trade Shows & Exhibitions"
-    type: web_search
-    query: "UK construction trade show exhibition 2026 Ecobuild Futurebuild Digital Construction Week"
-    tier: 3
-    tags: [events, networking, market-intel]
-    signal_score: 4
-    scan_frequency: monthly
+  # DROPPED 2026-04-17 (Wildcatter audit): Trade Shows & Exhibitions — signal score 4, low value
 
   - name: "Laser Scanning Forum"
     type: web_search

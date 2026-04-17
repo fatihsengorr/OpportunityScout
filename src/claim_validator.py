@@ -84,8 +84,8 @@ class ClaimValidator:
             v = self._validate_single_claim(claim)
             validated.append(v)
 
-        # Step 3: Aggregate
-        result = self._aggregate(validated)
+        # Step 3: Aggregate (includes verifiability_score per Hassabis insight)
+        result = self._aggregate(validated, opp)
         result['validated_at'] = datetime.utcnow().isoformat()
 
         self._save(opp.get('id'), result)
@@ -249,15 +249,99 @@ Status definitions:
             'sources': parsed.get('sources', [])[:3],
         }
 
+    # ─── Verifiability scoring (Hassabis insight) ───────────
+
+    def _compute_verifiability_score(self, opp: dict, validated: list) -> int:
+        """Compute 1-10 verifiability score.
+
+        Based on Hassabis's observation: "AI works best in domains with
+        measurable feedback within 6-12 months." An opportunity that can
+        produce measurable outcomes (revenue, user signups, regulatory
+        pass/fail) scores high. Speculative academic claims score low.
+
+        Factors:
+        1. Revenue_path specificity (concrete timeline + amount)
+        2. Validated claims ratio (how many stand up to web search)
+        3. Disputed claims penalty
+        4. "When will we know?" answerability
+        """
+        score = 5  # Base
+
+        # Factor 1: Revenue path concreteness
+        revenue_path = (opp.get('revenue_path') or '').lower()
+        if revenue_path:
+            # Has specific timeframe keywords
+            timeframe_kws = ['30 gün', '60 gün', '90 gün', '6 ay', '12 ay',
+                             '3 months', '6 months', '12 months', 'q1', 'q2',
+                             'within', 'ilk', 'month']
+            has_timeframe = any(kw in revenue_path for kw in timeframe_kws)
+            # Has amount indicator
+            has_amount = any(kw in revenue_path for kw in
+                             ['£', '$', '₺', 'k/mo', 'mrr', 'arr', 'month',
+                              'revenue', 'gelir', 'fatura'])
+            if has_timeframe and has_amount:
+                score += 2
+            elif has_timeframe or has_amount:
+                score += 1
+
+        # Factor 2: First move concreteness
+        first_move = (opp.get('first_move') or '').lower()
+        if first_move and len(first_move) > 30:
+            # Concrete action verbs
+            concrete_kws = ['call', 'email', 'contact', 'ara', 'gönder',
+                            'meet', 'demo', 'sign', 'onayla', 'post', 'yaz']
+            if any(kw in first_move for kw in concrete_kws):
+                score += 1
+
+        # Factor 3: Validated claims influence
+        if validated:
+            total = len(validated)
+            verified = sum(1 for v in validated if v.get('status') == 'verified')
+            disputed = sum(1 for v in validated if v.get('status') == 'disputed')
+            unverified = sum(1 for v in validated if v.get('status') == 'unverified')
+
+            verified_ratio = verified / total
+            if verified_ratio >= 0.66:
+                score += 2
+            elif verified_ratio >= 0.33:
+                score += 1
+
+            # Penalty for disputed or mostly unverified claims
+            if disputed > 0:
+                score -= 2
+            if unverified >= total // 2:
+                score -= 1
+
+        # Factor 4: Sector modifier — some sectors inherently more verifiable
+        sector = (opp.get('sector') or '').lower()
+        inherently_verifiable = [
+            'saas', 'marketplace', 'ecommerce', 'compliance',
+            'manufacturing', 'logistics'
+        ]
+        speculative = ['research', 'ai-policy', 'philosophy', 'prediction']
+        if any(s in sector for s in inherently_verifiable):
+            score += 1
+        elif any(s in sector for s in speculative):
+            score -= 1
+
+        # Clamp to 1-10
+        return max(1, min(10, score))
+
     # ─── Aggregation ───────────────────────────────────────
 
-    def _aggregate(self, validated: list) -> dict:
+    def _aggregate(self, validated: list, opp: dict = None) -> dict:
         """Aggregate per-claim validations into opp-level verdict."""
         if not validated:
-            return {
+            base = {
                 'status': 'verified', 'confidence': 1.0,
                 'claims': [], 'flags': [],
             }
+            # Still compute verifiability_score from opp structure
+            if opp:
+                base['verifiability_score'] = self._compute_verifiability_score(opp, [])
+            else:
+                base['verifiability_score'] = 5
+            return base
 
         counts = {'verified': 0, 'unverified': 0, 'disputed': 0, 'inconclusive': 0}
         for v in validated:
@@ -289,12 +373,16 @@ Status definitions:
             elif v.get('status') == 'unverified':
                 flags.append(f"❓ Unverified: {v['claim'][:80]}")
 
-        return {
+        result = {
             'status': status,
             'confidence': confidence,
             'claims': validated,
             'flags': flags,
         }
+        # Add verifiability_score (Hassabis insight)
+        if opp:
+            result['verifiability_score'] = self._compute_verifiability_score(opp, validated)
+        return result
 
     # ─── Storage + parsing ─────────────────────────────────
 
@@ -342,16 +430,18 @@ Status definitions:
     # ─── Rendering ──────────────────────────────────────────
 
     def format_badge(self, validation: dict) -> str:
-        """Short badge for inclusion in alerts."""
+        """Short badge for inclusion in alerts — includes verifiability score."""
         status = validation.get('status', 'unverified')
         conf = validation.get('confidence', 0)
+        verif = validation.get('verifiability_score', 0)
         emoji = {
             'verified': '✅',
             'partial': '🟡',
             'disputed': '❌',
             'unverified': '❓',
         }.get(status, '❓')
-        return f"{emoji} {status} ({conf:.0%})"
+        verif_str = f" · V{verif}/10" if verif else ""
+        return f"{emoji} {status} ({conf:.0%}){verif_str}"
 
     def format_full(self, validation: dict) -> str:
         """Full validation details."""
