@@ -135,8 +135,7 @@ async def home(request: Request,
 
     conn.close()
 
-    return templates.TemplateResponse("home.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "home.html", {
         "opportunities": opportunities,
         "tier_counts": tier_counts,
         "sector_counts": sector_counts,
@@ -173,8 +172,7 @@ async def pipeline(request: Request):
 
     conn.close()
 
-    return templates.TemplateResponse("pipeline.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "pipeline.html", {
         "by_stage": by_stage,
         "stages": PIPELINE_STAGES,
         "stage_emoji": STAGE_EMOJI,
@@ -194,8 +192,7 @@ async def opportunity_detail(request: Request, opp_id: str):
         raise HTTPException(status_code=404, detail=f"{opp_id} not found")
 
     opp = row_to_dict(row)
-    return templates.TemplateResponse("detail.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "detail.html", {
         "opp": opp,
         "stage_emoji": STAGE_EMOJI,
         "tier_emoji": TIER_EMOJI,
@@ -255,8 +252,7 @@ async def analytics(request: Request):
 
     conn.close()
 
-    return templates.TemplateResponse("analytics.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "analytics.html", {
         "daily": daily,
         "strategies": strategies,
         "sources": sources,
@@ -338,15 +334,14 @@ async def search(request: Request, q: str = ""):
         like = f"%{q}%"
         cursor.execute("""
             SELECT * FROM opportunities
-            WHERE title LIKE ? OR one_liner LIKE ? OR description LIKE ?
+            WHERE title LIKE ? OR one_liner LIKE ? OR why_now LIKE ?
                OR sector LIKE ? OR tags_json LIKE ?
             ORDER BY weighted_total DESC LIMIT 50
         """, (like, like, like, like, like))
         opportunities = [row_to_dict(r) for r in cursor.fetchall()]
         conn.close()
 
-    return templates.TemplateResponse("search.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "search.html", {
         "q": q,
         "opportunities": opportunities,
         "tier_emoji": TIER_EMOJI,

@@ -40,10 +40,11 @@
 <h2>Scoring Breakdown</h2>
 <div class="scores">
   {% for dim, score in opp.scores.items() %}
+  {% set score_val = score if score is number else (score.value if score is mapping and 'value' in score else 0) %}
   <div class="score-item">
     <span class="dim">{{ dim }}</span>
-    <div class="bar"><div class="bar-fill" style="width: {{ score*10 }}%"></div></div>
-    <span class="score-value">{{ score }}/10</span>
+    <div class="bar"><div class="bar-fill" style="width: {{ (score_val|float)*10 }}%"></div></div>
+    <span class="score-value">{{ score_val }}/10</span>
   </div>
   {% endfor %}
 </div>
