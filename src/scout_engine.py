@@ -440,7 +440,7 @@ class ScoutEngine:
         if result.get("opportunities"):
             for opp in result["opportunities"]:
                 if opp.get('tier') == 'FIRE':
-                    await self.telegram.send_fire_alert(opp)
+                    await self._send_fire_alert_with_validation(opp)
                 elif opp.get('tier') == 'HIGH':
                     await self.telegram.send_high_alert(opp)
 
@@ -609,7 +609,7 @@ class ScoutEngine:
         for opp in opportunities:
             tier = opp.get('tier', 'LOW')
             if tier == 'FIRE':
-                await self.telegram.send_fire_alert(opp)
+                await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
                 await self.telegram.send_high_alert(opp)
 
@@ -661,7 +661,7 @@ class ScoutEngine:
         for opp in opportunities:
             tier = opp.get('tier', 'LOW')
             if tier == 'FIRE':
-                await self.telegram.send_fire_alert(opp)
+                await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
                 await self.telegram.send_high_alert(opp)
 
@@ -715,7 +715,7 @@ class ScoutEngine:
         for opp in opportunities:
             tier = opp.get('tier', 'LOW')
             if tier == 'FIRE':
-                await self.telegram.send_fire_alert(opp)
+                await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
                 await self.telegram.send_high_alert(opp)
 
@@ -768,7 +768,7 @@ class ScoutEngine:
         for opp in opportunities:
             tier = opp.get('tier', 'LOW')
             if tier == 'FIRE':
-                await self.telegram.send_fire_alert(opp)
+                await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
                 await self.telegram.send_high_alert(opp)
 
@@ -823,7 +823,7 @@ class ScoutEngine:
         for opp in opportunities:
             tier = opp.get('tier', 'LOW')
             if tier == 'FIRE':
-                await self.telegram.send_fire_alert(opp)
+                await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
                 await self.telegram.send_high_alert(opp)
 
@@ -975,27 +975,56 @@ class ScoutEngine:
             Consensus scoring (Gemini Flash blind)
 
         If Wow threshold passes → VAY tier (sends special 🌟 alert instead of 🔥)
+        Idempotent: skips pattern/wow if already computed (e.g. Mode 2 pre-computed).
         """
         badges = []
         opp_id = opp.get('id')
 
-        # 1. Pattern Envanteri Filter (7 pattern)
+        # 1. Pattern Envanteri Filter (7 pattern) — idempotent
         pattern_result = None
-        try:
-            pattern_result = self.patterns.match_and_save(opp_id, opp) if opp_id \
-                              else self.patterns.match(opp)
-            badges.append(self.patterns.format_summary(pattern_result))
-            # Store back on opp for wow threshold access
-            opp['pattern_matches_json'] = pattern_result
-            opp['pattern_count'] = pattern_result.get('count', 0)
-        except Exception as e:
-            logger.warning(f"Pattern match skipped for {opp_id}: {e}")
-            badges.append("○ patterns N/A")
+        # Check if pattern already computed (Mode 2 does this inline)
+        existing_pattern = opp.get('pattern_matches_json')
+        if existing_pattern:
+            # Parse if it's a string (from DB)
+            import json as _json
+            try:
+                pattern_result = (_json.loads(existing_pattern)
+                                  if isinstance(existing_pattern, str)
+                                  else existing_pattern)
+                badges.append(self.patterns.format_summary(pattern_result))
+            except Exception:
+                pattern_result = None
+
+        if not pattern_result:
+            try:
+                pattern_result = self.patterns.match_and_save(opp_id, opp) if opp_id \
+                                  else self.patterns.match(opp)
+                badges.append(self.patterns.format_summary(pattern_result))
+                # Store back on opp for wow threshold access
+                opp['pattern_matches_json'] = pattern_result
+                opp['pattern_count'] = pattern_result.get('count', 0)
+            except Exception as e:
+                logger.warning(f"Pattern match skipped for {opp_id}: {e}")
+                badges.append("○ patterns N/A")
 
         # 2. Wow Threshold — only if patterns are strong enough
-        is_vay = False
+        # Idempotent: skip if already computed
+        is_vay = bool(opp.get('is_vay') or opp.get('_is_vay'))
         wow_result = None
-        if pattern_result and pattern_result.get('verdict') in ('wow_candidate', 'high_match'):
+        existing_wow = opp.get('wow_json')
+        if existing_wow and not wow_result:
+            import json as _json
+            try:
+                wow_result = (_json.loads(existing_wow)
+                              if isinstance(existing_wow, str)
+                              else existing_wow)
+                badges.append(self.wow.format_badge(wow_result))
+                if wow_result.get('verdict') == 'VAY':
+                    is_vay = True
+            except Exception:
+                wow_result = None
+
+        if not wow_result and pattern_result and pattern_result.get('verdict') in ('wow_candidate', 'high_match'):
             try:
                 wow_result = self.wow.evaluate_and_save(opp_id, opp) if opp_id \
                               else self.wow.evaluate(opp)
@@ -1278,12 +1307,14 @@ class ScoutEngine:
         opportunities = result.get('opportunities', [])
         vay_count = result.get('vay_count', 0)
 
-        # Send VAY alerts (new special format)
+        # Send VAY alerts — pass through validation pipeline (pattern/wow
+        # are idempotent, so they won't re-run from Mode 2 pre-computation).
+        # This adds verifiability + consensus badges to the alert.
         for opp in opportunities:
             if opp.get('is_vay'):
                 opp['_is_vay'] = True
                 try:
-                    await self.telegram.send_fire_alert(opp)
+                    await self._send_fire_alert_with_validation(opp)
                 except Exception as e:
                     logger.warning(f"VAY alert failed: {e}")
 
@@ -1415,7 +1446,7 @@ class ScoutEngine:
                 opportunities.append(opp)
                 tier = opp.get('tier', 'LOW')
                 if tier == 'FIRE':
-                    await self.telegram.send_fire_alert(opp)
+                    await self._send_fire_alert_with_validation(opp)
                 elif tier == 'HIGH':
                     await self.telegram.send_high_alert(opp)
 
@@ -1524,7 +1555,7 @@ class ScoutEngine:
         for opp in hybrids:
             tier = opp.get('tier', 'LOW')
             if tier == 'FIRE':
-                await self.telegram.send_fire_alert(opp)
+                await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
                 await self.telegram.send_high_alert(opp)
 
