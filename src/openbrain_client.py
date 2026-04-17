@@ -39,32 +39,27 @@ class OpenBrainClient:
         """
         Push a discovered opportunity into Open Brain.
         Uses the /ingest webhook endpoint.
+
+        NOTE: Open Brain v2 ingest schema accepts only {path, content}.
+        Metadata (tier, score, tags) is embedded inline in content as markdown
+        front-matter — Brain's semantic search still finds it there.
         """
         if not self.enabled:
             return None
 
-        tier = opportunity.get("tier", "MEDIUM")
-        score = opportunity.get("weighted_total", 0)
-        title = opportunity.get("title", "Untitled")
-        sector = opportunity.get("sector", "N/A")
-        opp_id = opportunity.get("id", "N/A")
+        sector = opportunity.get("sector") or "uncategorized"
+        # Normalize sector for path (lowercase, no spaces, no slashes)
+        safe_sector = (sector.lower()
+                       .replace(' ', '-')
+                       .replace('/', '-')
+                       .replace('&', 'and'))
 
-        # Build rich content for Brain
+        # Build rich content — metadata now embedded as markdown front-matter
         content = self._format_opportunity_for_brain(opportunity)
 
         payload = {
             "content": content,
-            "path": f"intelligence/opportunities/{sector.lower().replace(' ', '-')}",
-            "doc_type": "thought",
-            "source": "opportunityscout",
-            "metadata": {
-                "type": "reference",
-                "topics": [sector, tier, "opportunity-scout"],
-                "tags": opportunity.get("tags", []),
-                "scout_id": opp_id,
-                "score": score,
-                "tier": tier,
-            },
+            "path": f"intelligence/opportunities/{safe_sector}",
         }
 
         return await self._ingest(payload)
@@ -74,25 +69,24 @@ class OpenBrainClient:
         if not self.enabled:
             return None
 
+        tags = signal.get("tags", [])
+        if isinstance(tags, list):
+            tags_str = ', '.join(tags)
+        else:
+            tags_str = str(tags)
+
         content = (
             f"Market Signal: {signal.get('summary', 'N/A')}\n"
             f"Source: {signal.get('source', 'N/A')}\n"
             f"Relevance: {signal.get('relevance', 'N/A')}\n"
+            f"Tags: {tags_str}\n"
             f"Detected: {datetime.utcnow().strftime('%Y-%m-%d')}"
         )
 
-        payload = {
+        return await self._ingest({
             "content": content,
             "path": "intelligence/market-signals",
-            "doc_type": "thought",
-            "source": "opportunityscout",
-            "metadata": {
-                "type": "observation",
-                "topics": signal.get("tags", ["market-signal"]),
-            },
-        }
-
-        return await self._ingest(payload)
+        })
 
     async def push_weekly_summary(self, report_data: dict) -> dict | None:
         """Push weekly report summary into Brain as a document."""
@@ -127,18 +121,10 @@ class OpenBrainClient:
             for i, action in enumerate(actions, 1):
                 content += f"{i}. {action}\n"
 
-        payload = {
+        return await self._ingest({
             "content": content,
             "path": f"intelligence/opportunities/weekly-{date_str}",
-            "doc_type": "document",
-            "source": "opportunityscout",
-            "metadata": {
-                "type": "reference",
-                "topics": ["weekly-report", "opportunity-scout"],
-            },
-        }
-
-        return await self._ingest(payload)
+        })
 
     # ─── Phase 2: Brain → Scout ─────────────────────────────
 

@@ -442,7 +442,7 @@ class ScoutEngine:
                 if opp.get('tier') == 'FIRE':
                     await self._send_fire_alert_with_validation(opp)
                 elif opp.get('tier') == 'HIGH':
-                    await self.telegram.send_high_alert(opp)
+                    await self._send_high_alert_with_brain(opp)
 
         return result
 
@@ -611,7 +611,7 @@ class ScoutEngine:
             if tier == 'FIRE':
                 await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
-                await self.telegram.send_high_alert(opp)
+                await self._send_high_alert_with_brain(opp)
 
         if opportunities:
             summary = (
@@ -663,7 +663,7 @@ class ScoutEngine:
             if tier == 'FIRE':
                 await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
-                await self.telegram.send_high_alert(opp)
+                await self._send_high_alert_with_brain(opp)
 
         if opportunities:
             summary = (
@@ -717,7 +717,7 @@ class ScoutEngine:
             if tier == 'FIRE':
                 await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
-                await self.telegram.send_high_alert(opp)
+                await self._send_high_alert_with_brain(opp)
 
         if opportunities:
             lens_info = result.get('lens_results', {})
@@ -770,7 +770,7 @@ class ScoutEngine:
             if tier == 'FIRE':
                 await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
-                await self.telegram.send_high_alert(opp)
+                await self._send_high_alert_with_brain(opp)
 
         if opportunities:
             frontiers = result.get('new_frontiers', [])
@@ -825,7 +825,7 @@ class ScoutEngine:
             if tier == 'FIRE':
                 await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
-                await self.telegram.send_high_alert(opp)
+                await self._send_high_alert_with_brain(opp)
 
         if opportunities:
             summary = (
@@ -965,6 +965,27 @@ class ScoutEngine:
 
     # ─── Claim Validation ─────────────────────────────────────
 
+    async def _push_to_brain(self, opp: dict):
+        """Push opportunity to Open Brain knowledge graph.
+
+        Idempotent + safe: silently skips if brain not configured or fails.
+        Called for every FIRE and HIGH alert across all discovery motors.
+        """
+        try:
+            if self.brain and opp.get('tier') in ('FIRE', 'HIGH', 'VAY'):
+                await self.brain.push_opportunity(opp)
+        except Exception as e:
+            logger.debug(f"Brain push skipped: {e}")
+
+    async def _send_high_alert_with_brain(self, opp: dict):
+        """HIGH alert + Open Brain push (lightweight version of FIRE pipeline).
+
+        Used across all motors. HIGH tier gets Brain push but skips the
+        expensive pattern/wow/validation pipeline (FIRE-only).
+        """
+        await self._push_to_brain(opp)
+        await self.telegram.send_high_alert(opp)
+
     async def _send_fire_alert_with_validation(self, opp: dict):
         """Full Wildcatter pipeline before FIRE alert:
 
@@ -972,7 +993,8 @@ class ScoutEngine:
             Wow threshold (5 kriter, if FIRE + patterns strong) →
             Verifiability (Hassabis insight) →
             Claim validation (Haiku + web search) →
-            Consensus scoring (Gemini Flash blind)
+            Consensus scoring (Gemini Flash blind) →
+            Open Brain push (knowledge graph, FIRE/HIGH/VAY only)
 
         If Wow threshold passes → VAY tier (sends special 🌟 alert instead of 🔥)
         Idempotent: skips pattern/wow if already computed (e.g. Mode 2 pre-computed).
@@ -1064,6 +1086,9 @@ class ScoutEngine:
 
         # Attach validation badge
         opp['_validation_badge'] = " · ".join(badges)
+
+        # Push to Open Brain (knowledge graph, semantic search)
+        await self._push_to_brain(opp)
 
         # Send the right alert type
         if is_vay:
@@ -1448,7 +1473,7 @@ class ScoutEngine:
                 if tier == 'FIRE':
                     await self._send_fire_alert_with_validation(opp)
                 elif tier == 'HIGH':
-                    await self.telegram.send_high_alert(opp)
+                    await self._send_high_alert_with_brain(opp)
 
                 # Publish to event bus
                 self.event_bus.publish('opportunity_scored', {
@@ -1557,7 +1582,7 @@ class ScoutEngine:
             if tier == 'FIRE':
                 await self._send_fire_alert_with_validation(opp)
             elif tier == 'HIGH':
-                await self.telegram.send_high_alert(opp)
+                await self._send_high_alert_with_brain(opp)
 
         if connections:
             summary = (
