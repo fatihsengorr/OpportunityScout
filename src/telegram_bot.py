@@ -78,19 +78,27 @@ class TelegramNotifier:
     # ─── Alert Methods ──────────────────────────────────────
 
     async def send_fire_alert(self, opportunity: dict):
-        """Send instant alert for a FIRE-tier opportunity."""
+        """Send instant alert for a FIRE-tier opportunity.
+
+        If a validation badge is present on the opportunity, include it in the alert.
+        """
         scores = opportunity.get('scores', {})
         top_dims = self._escape_md(self._get_top_dimensions(scores, n=3))
         score_str = self._escape_md(str(opportunity.get('weighted_total', 0)))
         risks = self._escape_md(', '.join(opportunity.get('risks', ['N/A'])))
         opp_id = opportunity.get('id', 'N/A')
 
+        # Optional validation badge (set by scout_engine before sending)
+        val_badge = opportunity.get('_validation_badge')
+        val_line = f"🔎 {self._escape_md(val_badge)}\n\n" if val_badge else ""
+
         message = (
             f"🔥 *FIRE OPPORTUNITY DETECTED*\n\n"
             f"*{self._escape_md(opportunity.get('title', 'Unknown'))}*\n\n"
             f"_{self._escape_md(opportunity.get('one_liner', ''))}_\n\n"
             f"📊 *Score: {score_str}/155*\n"
-            f"🏆 Top: {top_dims}\n\n"
+            f"🏆 Top: {top_dims}\n"
+            f"{val_line}"
             f"⏰ *Why NOW:*\n{self._escape_md(opportunity.get('why_now', 'N/A'))}\n\n"
             f"🎯 *First Move:*\n{self._escape_md(opportunity.get('first_move', 'N/A'))}\n\n"
             f"💰 *Revenue Path:*\n{self._escape_md(opportunity.get('revenue_path', 'N/A'))}\n\n"
@@ -435,6 +443,12 @@ class TelegramNotifier:
                 "/move OPP-XXX <stage> [note] — Change stage\n"
                 "/note OPP-XXX <text> — Add a note\n"
                 "  Stages: discovered → researching → validating → building → launched → won/dead\n\n"
+                "🎬 *Action Kit*\n"
+                "/actionkit OPP-XXX — Full 30-day launch kit (plan, outreach, landing copy)\n\n"
+                "💰 *Financial Model*\n"
+                "/finance OPP-XXX — Unit economics, CAC/LTV, break-even, 12-month projection\n\n"
+                "🔎 *Claim Validation*\n"
+                "/validate OPP-XXX — Extract claims, verify via web (FIRE alerts auto-validate)\n\n"
                 "/help — Show this message"
             )
             await update.message.reply_text(msg)
@@ -675,6 +689,66 @@ class TelegramNotifier:
             else:
                 await update.message.reply_text(f"❌ Opportunity `{opp_id}` not found.")
 
+        async def cmd_validate(update: Update, context):
+            """Validate factual claims in an opportunity."""
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/validate OPP-XXX`\n"
+                    "Extracts key claims and verifies them via web search.\n"
+                    "~20-40 seconds, ~$0.02 per opportunity.",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            await update.message.reply_text(
+                f"🔎 Validating `{opp_id}`... 20-40s.",
+                parse_mode='Markdown'
+            )
+            result = await scout_engine.run_validation(opp_id)
+            if result.get('error'):
+                await update.message.reply_text(f"❌ {result['error']}")
+
+        async def cmd_finance(update: Update, context):
+            """Generate financial model for an opportunity."""
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/finance OPP-XXX`\n"
+                    "Unit economics, CAC/LTV, break-even month, 12-month projection.\n"
+                    "~20 seconds, ~$0.05.",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            await update.message.reply_text(
+                f"💰 Modeling `{opp_id}`... 20-30s.",
+                parse_mode='Markdown'
+            )
+            result = await scout_engine.run_financial_model(opp_id)
+            if result.get('error'):
+                await update.message.reply_text(f"❌ {result['error']}")
+
+        async def cmd_actionkit(update: Update, context):
+            """Generate action kit for an opportunity."""
+            args = context.args
+            if not args:
+                await update.message.reply_text(
+                    "Usage: `/actionkit OPP-XXX`\n"
+                    "Generates 30-day plan, discovery questions, cold outreach, landing copy.\n"
+                    "Takes ~30-45 seconds. Full kit emailed, summary here.",
+                    parse_mode='Markdown'
+                )
+                return
+            opp_id = args[0].upper()
+            await update.message.reply_text(
+                f"🎬 Generating action kit for `{opp_id}`... 30-45s.",
+                parse_mode='Markdown'
+            )
+            result = await scout_engine.run_action_kit(opp_id)
+            if result.get('error'):
+                await update.message.reply_text(f"❌ {result['error']}")
+
         async def cmd_show(update: Update, context):
             """Show full details of an opportunity including pipeline notes."""
             kb = scout_engine.kb
@@ -744,7 +818,7 @@ class TelegramNotifier:
                                                  notes='Feedback: 👎 Skip')
                     reply = f"✅ `{opp_id}` → 👎 Skipped\nMarked as *dead*."
                 elif action == 'more':
-                    # Show full details inline
+                    # Show full details inline + hint toward action kit
                     cursor = kb.conn.cursor()
                     cursor.execute("SELECT * FROM opportunities WHERE id = ?",
                                    (opp_id,))
@@ -756,9 +830,11 @@ class TelegramNotifier:
                     row = dict(row)
                     msg = (f"*{row['title']}*\n"
                            f"`{row['id']}` — {row.get('weighted_total', 0):.0f}/155\n\n"
-                           f"{(row.get('description', '') or '')[:800]}\n\n"
+                           f"{(row.get('one_liner', '') or '')[:600]}\n\n"
                            f"💰 Revenue: {row.get('revenue_path', 'N/A')}\n"
-                           f"🎯 First move: {row.get('first_move', 'N/A')}")
+                           f"🎯 First move: {row.get('first_move', 'N/A')}\n\n"
+                           f"📎 Want the full launch kit?\n"
+                           f"→ `/actionkit {opp_id}`")
                     await query.message.reply_text(msg, parse_mode='Markdown')
                     return
                 else:
@@ -778,6 +854,9 @@ class TelegramNotifier:
         app.add_handler(CommandHandler("move", cmd_move))
         app.add_handler(CommandHandler("note", cmd_note))
         app.add_handler(CommandHandler("show", cmd_show))
+        app.add_handler(CommandHandler("actionkit", cmd_actionkit))
+        app.add_handler(CommandHandler("finance", cmd_finance))
+        app.add_handler(CommandHandler("validate", cmd_validate))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
         app.add_handler(CallbackQueryHandler(on_feedback_button, pattern="^fb:"))

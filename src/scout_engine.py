@@ -39,6 +39,9 @@ from .competitive_monitor import CompetitiveMonitor
 from .cross_pollinator import CrossPollinator
 from .event_bus import EventBus
 from .horizon_scanner import HorizonScanner
+from .action_kit_generator import ActionKitGenerator
+from .financial_modeler import FinancialModeler
+from .claim_validator import ClaimValidator
 
 logger = logging.getLogger("scout.engine")
 
@@ -68,6 +71,9 @@ class ScoutEngine:
         self.localizer = LocalizationScanner(self.config, self.kb)
         self.explorer = CapabilityExplorer(self.config, self.kb)
         self.horizon = HorizonScanner(self.config, self.kb)
+        self.action_kit = ActionKitGenerator(self.config, self.kb)
+        self.financial = FinancialModeler(self.config, self.kb)
+        self.validator = ClaimValidator(self.config, self.kb)
 
         # Initialize Intelligence Mesh event bus
         self.event_bus = EventBus(self.kb)
@@ -233,7 +239,8 @@ class ScoutEngine:
                 # Send alerts based on tier
                 tier_label = opp.get('tier', 'LOW')
                 if tier_label == 'FIRE':
-                    await self.telegram.send_fire_alert(opp)
+                    # Validate claims before alerting (~$0.01-0.02, adds ~15s latency)
+                    await self._send_fire_alert_with_validation(opp)
                     await self.email.send_fire_alert(opp)
                     stats["fire_alerts"] += 1
                     logger.info(f"   🔥 FIRE: {opp.get('title')} ({opp.get('weighted_total')})")
@@ -854,6 +861,156 @@ class ScoutEngine:
             f"opportunities found"
         )
         return result
+
+    # ─── Action Kit Generator ─────────────────────────────────
+
+    async def run_action_kit(self, opp_id: str) -> dict:
+        """Generate an action kit for an opportunity and deliver via Telegram + email."""
+        logger.info(f"🎬 Generating action kit for {opp_id}...")
+
+        # Fetch opportunity
+        cursor = self.kb.conn.cursor()
+        cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            await self.telegram.send_text(f"❌ Opportunity `{opp_id}` not found.")
+            return {"error": "not_found"}
+        opp = dict(row)
+
+        # Generate kit (Claude Sonnet, ~30-45 seconds, ~$0.10-0.15)
+        try:
+            kit = self.action_kit.generate(opp_id)
+        except Exception as e:
+            logger.error(f"Action kit generation failed: {e}")
+            await self.telegram.send_text(f"❌ Action kit failed: {e}")
+            return {"error": str(e)}
+
+        if kit.get('_parse_error'):
+            await self.telegram.send_text(
+                f"⚠️ Action kit JSON parse failed for `{opp_id}`. "
+                f"Raw response saved."
+            )
+            return kit
+
+        # Format for Telegram (condensed) + email (full HTML)
+        md_summary = self.action_kit.format_as_markdown(opp, kit)
+        html_report = self.action_kit.format_as_html(opp, kit)
+
+        # Telegram: send condensed summary (first 3500 chars max)
+        telegram_msg = md_summary[:3500]
+        if len(md_summary) > 3500:
+            telegram_msg += f"\n\n📧 _Full kit sent to your email ({len(md_summary)} chars)_"
+
+        await self.telegram.send_text(telegram_msg)
+
+        # Email: send full HTML report
+        try:
+            subject = f"🎬 Action Kit — {opp.get('title', '?')[:60]}"
+            if hasattr(self.email, 'send_raw_html'):
+                await self.email.send_raw_html(subject, html_report)
+            else:
+                # Fallback: use activity report
+                await self.email.send_activity_report(
+                    activity_type="action_kit",
+                    opportunities=[opp],
+                    extra_info={"action_kit_html": html_report, "opp_id": opp_id}
+                )
+        except Exception as e:
+            logger.warning(f"Action kit email send failed: {e}")
+
+        # Auto-move opportunity to 'researching' stage if still in 'discovered'
+        current_stage = opp.get('pipeline_stage') or 'discovered'
+        if current_stage == 'discovered':
+            self.kb.move_pipeline_stage(
+                opp_id, 'researching',
+                append_note='Action kit generated — moved to researching'
+            )
+
+        logger.info(f"🎬 Action kit delivered for {opp_id}")
+        return {"opportunity_id": opp_id, "kit": kit}
+
+    # ─── Claim Validation ─────────────────────────────────────
+
+    async def _send_fire_alert_with_validation(self, opp: dict):
+        """Run claim validation in background before sending FIRE alert.
+
+        On validation failure, alert is still sent (with '?' badge) — we don't
+        want to suppress discovery because validator timed out.
+        """
+        try:
+            validation = self.validator.validate(opp)
+            badge = self.validator.format_badge(validation)
+            opp['_validation_badge'] = badge
+            # Flag disputed claims prominently
+            if validation.get('status') == 'disputed':
+                logger.warning(
+                    f"🔎 DISPUTED CLAIMS in {opp.get('id')}: "
+                    f"{len(validation.get('flags', []))} issues"
+                )
+        except Exception as e:
+            logger.warning(f"Validation skipped for {opp.get('id')}: {e}")
+            opp['_validation_badge'] = "❓ not validated"
+
+        await self.telegram.send_fire_alert(opp)
+
+    async def run_validation(self, opp_id: str) -> dict:
+        """Validate claims in an opportunity and deliver result via Telegram."""
+        logger.info(f"🔎 Validating claims for {opp_id}...")
+
+        cursor = self.kb.conn.cursor()
+        cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+        row = cursor.fetchone()
+        if not row:
+            await self.telegram.send_text(f"❌ Opportunity `{opp_id}` not found.")
+            return {"error": "not_found"}
+        opp = dict(row)
+
+        try:
+            result = self.validator.validate(opp)
+        except Exception as e:
+            logger.error(f"Validation failed: {e}")
+            await self.telegram.send_text(f"❌ Validation failed: {e}")
+            return {"error": str(e)}
+
+        # Pretty summary for Telegram
+        msg = f"🔎 *Validation — {opp.get('title', '?')[:60]}*\n"
+        msg += f"`{opp_id}`\n\n"
+        msg += self.validator.format_full(result)
+        await self.telegram.send_text(msg)
+
+        logger.info(
+            f"🔎 Validation complete for {opp_id}: {result.get('status')} "
+            f"(conf {result.get('confidence'):.2f})"
+        )
+        return {"opportunity_id": opp_id, "validation": result}
+
+    # ─── Financial Modeling ──────────────────────────────────
+
+    async def run_financial_model(self, opp_id: str) -> dict:
+        """Generate a financial model for an opportunity and deliver via Telegram."""
+        logger.info(f"💰 Running financial model for {opp_id}...")
+
+        try:
+            model = self.financial.model_opportunity(opp_id)
+        except ValueError as e:
+            await self.telegram.send_text(f"❌ {e}")
+            return {"error": str(e)}
+        except Exception as e:
+            logger.error(f"Financial model failed: {e}")
+            await self.telegram.send_text(f"❌ Financial model failed: {e}")
+            return {"error": str(e)}
+
+        # Fetch opp for rendering
+        cursor = self.kb.conn.cursor()
+        cursor.execute("SELECT * FROM opportunities WHERE id = ?", (opp_id,))
+        row = cursor.fetchone()
+        opp = dict(row) if row else {'id': opp_id}
+
+        summary = self.financial.format_summary(opp, model)
+        await self.telegram.send_text(summary)
+
+        logger.info(f"💰 Financial model delivered for {opp_id}")
+        return {"opportunity_id": opp_id, "model": model}
 
     # ─── Capability Explorer ──────────────────────────────────
 

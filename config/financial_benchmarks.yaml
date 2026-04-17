@@ -1,0 +1,90 @@
+# Sector benchmarks for financial modeling
+# Sources: OpenView SaaS benchmarks, Bessemer State of Cloud, industry reports (2024-2026)
+
+revenue_models:
+  subscription_saas:
+    description: "Monthly/annual recurring revenue"
+    typical_gross_margin: 0.75
+    typical_churn_monthly: 0.03
+
+  productized_service:
+    description: "Fixed-scope service with repeatable delivery"
+    typical_gross_margin: 0.55
+    typical_churn_monthly: 0.05
+
+  transactional_marketplace:
+    description: "Take-rate on third-party transactions"
+    typical_gross_margin: 0.80
+    typical_churn_monthly: 0.04
+
+  usage_based:
+    description: "Pay-per-use API/infrastructure"
+    typical_gross_margin: 0.70
+    typical_churn_monthly: 0.02
+
+  one_time_sale:
+    description: "Single purchase, no recurring revenue"
+    typical_gross_margin: 0.40
+    typical_churn_monthly: 0
+
+  hardware_product:
+    description: "Physical product sale (factory/B2B)"
+    typical_gross_margin: 0.30
+    typical_churn_monthly: 0
+
+# CAC benchmarks by target customer size (GBP)
+cac_benchmarks:
+  smb_selfserve:
+    description: "SMB, self-serve funnel"
+    typical_cac_gbp: 150
+    typical_sales_cycle_days: 14
+
+  smb_sales_assisted:
+    description: "SMB, inside sales"
+    typical_cac_gbp: 600
+    typical_sales_cycle_days: 45
+
+  mid_market:
+    description: "50-500 employee target"
+    typical_cac_gbp: 3000
+    typical_sales_cycle_days: 90
+
+  enterprise:
+    description: "500+ employee target, field sales"
+    typical_cac_gbp: 15000
+    typical_sales_cycle_days: 180
+
+  consumer:
+    description: "B2C, paid acquisition"
+    typical_cac_gbp: 35
+    typical_sales_cycle_days: 1
+
+  construction_trade:
+    description: "UK construction contractors/architects"
+    typical_cac_gbp: 800
+    typical_sales_cycle_days: 60
+
+  manufacturing_b2b:
+    description: "Industrial product buyers (B2B factories)"
+    typical_cac_gbp: 1200
+    typical_sales_cycle_days: 75
+
+# Typical pricing bands by segment
+pricing_bands:
+  smb_saas_low: {min: 19, max: 49, unit: "per user per month"}
+  smb_saas_mid: {min: 49, max: 199, unit: "per user per month"}
+  mid_market_saas: {min: 299, max: 2000, unit: "per month flat"}
+  enterprise_saas: {min: 2000, max: 15000, unit: "per month flat"}
+  productized_service_low: {min: 500, max: 2500, unit: "per project"}
+  productized_service_high: {min: 5000, max: 25000, unit: "per project"}
+  consulting_day_rate: {min: 800, max: 2500, unit: "per day"}
+
+# Operating cost assumptions (solo founder setup)
+solo_founder_monthly_costs:
+  infrastructure_minimal: 150   # Hosting, APIs, basic SaaS tools
+  infrastructure_scaled: 800    # After 100+ customers
+  tools_and_subscriptions: 250  # Figma, Notion, dev tools
+  founder_draw: 3000            # Minimum viable founder income
+  marketing_initial: 500        # Content + minor paid ads
+  marketing_scaled: 3000        # After PMF
+  contingency_buffer: 500

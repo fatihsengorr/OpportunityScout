@@ -97,6 +97,59 @@ async def cmd_deep_dive(args):
     print(json.dumps(result, indent=2, default=str))
 
 
+async def cmd_validate(args):
+    """Validate factual claims in an opportunity."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_validation(args.opp_id)
+    if result.get('error'):
+        print(f"❌ Error: {result['error']}")
+    else:
+        v = result.get('validation', {})
+        print(f"\n✅ Validation complete for {args.opp_id}")
+        print(f"  Status: {v.get('status', '?')}")
+        print(f"  Confidence: {v.get('confidence', 0):.0%}")
+        print(f"  Claims checked: {len(v.get('claims', []))}")
+        for flag in v.get('flags', []):
+            print(f"  {flag}")
+
+
+async def cmd_finance(args):
+    """Generate financial model for an opportunity."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_financial_model(args.opp_id)
+    if result.get('error'):
+        print(f"❌ Error: {result['error']}")
+    else:
+        m = result.get('model', {})
+        ue = m.get('unit_economics', {})
+        realistic = m.get('projections', {}).get('realistic', {})
+        print(f"\n✅ Financial model generated for {args.opp_id}")
+        print(f"  Verdict: {m.get('verdict', '?')}")
+        print(f"  LTV/CAC: {ue.get('ltv_cac_ratio', 0):.1f}x")
+        print(f"  Break-even: month {realistic.get('break_even_month', '—')}")
+        print(f"  Capital required: £{realistic.get('capital_required_gbp', 0):,.0f}")
+
+
+async def cmd_action_kit(args):
+    """Generate action kit for an opportunity."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    result = await engine.run_action_kit(args.opp_id)
+    if result.get('error'):
+        print(f"❌ Error: {result['error']}")
+    elif result.get('_parse_error'):
+        print("⚠️ JSON parse error — see logs")
+    else:
+        kit = result.get('kit', {})
+        print(f"\n✅ Action kit generated for {args.opp_id}")
+        print(f"  {len(kit.get('plan_30day', []))} weekly milestones")
+        print(f"  {len(kit.get('discovery_questions', []))} discovery questions")
+        print(f"  {len(kit.get('known_competitors', []))} known competitors to check")
+        print(f"  Delivered via Telegram + email.")
+
+
 async def cmd_score(args):
     """Score a business idea."""
     from .scout_engine import ScoutEngine
@@ -599,6 +652,24 @@ def main():
     dd_parser = subparsers.add_parser('deep_dive', help='Deep dive on a topic')
     dd_parser.add_argument('topic', type=str)
 
+    # Action kit — 30-day action plan for an opportunity
+    ak_parser = subparsers.add_parser('action_kit',
+                                       help='Generate action kit for an opportunity')
+    ak_parser.add_argument('opp_id', type=str,
+                           help='Opportunity ID (e.g., OPP-20260416-abc123)')
+
+    # Finance — unit economics + 12-month projection
+    fin_parser = subparsers.add_parser('finance',
+                                        help='Generate financial model for an opportunity')
+    fin_parser.add_argument('opp_id', type=str,
+                            help='Opportunity ID (e.g., OPP-20260416-abc123)')
+
+    # Validate — claim validation with web search
+    val_parser = subparsers.add_parser('validate',
+                                        help='Validate factual claims in an opportunity')
+    val_parser.add_argument('opp_id', type=str,
+                            help='Opportunity ID')
+
     # Score
     score_parser = subparsers.add_parser('score', help='Score a business idea')
     score_parser.add_argument('idea', type=str)
@@ -695,6 +766,9 @@ def main():
         'digest': cmd_digest,
         'weekly': cmd_weekly,
         'deep_dive': cmd_deep_dive,
+        'action_kit': cmd_action_kit,
+        'finance': cmd_finance,
+        'validate': cmd_validate,
         'score': cmd_score,
         'evolve': cmd_evolve,
         'generate': cmd_generate,
