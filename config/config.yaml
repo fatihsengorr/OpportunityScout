@@ -75,6 +75,40 @@ scoring:
     high: 100      # 65% — strong opportunities
     medium: 75     # 48% — worth evaluating
 
+# ─── Expand Mode — Discover outside current sectors ──────
+# Fatih's explicit goal (17 April 2026):
+# "Benim hedefim benim sektörlerimin dışında sonuçlar bulmak"
+# All discovery engines read founder_profile.yaml which embeds these lists
+# in every prompt. This config block is informational / machine-readable.
+founder:
+  expand_mode: true
+
+  # Sectors Fatih is already active in — discovery engines EXCLUDE these
+  current_sectors:
+    - construction
+    - fit-out / contract furniture
+    - fire doors / fire safety
+    - building safety act (BSA) / golden thread
+    - BTR furniture
+    - coil coating / specialty paint production
+    - IT managed services (VDI, VMware, Cisco)
+
+  # Sectors Fatih wants to EXPAND into
+  target_sectors:
+    - biotech / life sciences / longevity
+    - fintech / regtech (non-construction)
+    - consumer DTC / D2C brands
+    - AI infrastructure / developer tools
+    - materials science / green chemistry / bio-based polymers
+    - e-commerce / marketplaces / cross-border arbitrage
+    - medical devices / diagnostics / digital health
+    - chemistry (non-coating — adhesives, polymers, cosmetics, food ingredients)
+    - education tech (niche UK/TR)
+    - cybersecurity (non-construction)
+
+  # Mode 1 (ThreadForge feed) handles current_sectors
+  # Mode 2 (unicorn) + serendipity + localize + horizon focus on target_sectors
+
 # ─── Serendipity Engine ───────────────────────────────────
 serendipity:
   min_founder_fit: 5          # Only show opportunities with FF ≥ this

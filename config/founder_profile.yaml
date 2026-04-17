@@ -2,6 +2,61 @@
 # This file defines what makes an opportunity a strong fit for THIS specific founder
 # Used by the scoring engine to calibrate Founder Fit dimension
 
+# ═══════════════════════════════════════════════════════════════
+# 🎯 EXPAND MODE — KRİTİK YÖNERGE (Fatih'in açık talebi, 17 Nisan 2026)
+# ═══════════════════════════════════════════════════════════════
+#
+# HEDEF: Fatih'in zaten aktif olduğu sektörlerin DIŞINDA fırsatlar bulmak.
+# Fatih'in kendi sözleri: "Ben girişimciyim, sektör adamı değilim.
+#                          Yemeksepeti de yaparım, bunu da yaparım."
+#
+# 🚫 ARAMA YAPMA — Fatih'in zaten aktif olduğu sektörler (Mode 1 / ThreadForge
+#    zaten kapsıyor, burada tekrar fırsat üretme):
+#    - construction / inşaat / fit-out / contract furniture
+#    - fire doors / fire safety / intumescent coatings
+#    - Building Safety Act (BSA) / golden thread / compliance
+#    - BTR (Build-to-Rent) furniture
+#    - coil coating / specialty paint production
+#    - IT managed services (sysadmin, VDI, VMware — zaten 20 yıl yapıldı)
+#
+# ✅ BU SEKTÖRLERE YÖNEL — yeni keşif, "yaparım" diyebileceği alanlar:
+#    - biotech / life sciences / longevity / GLP-1 / wellness
+#    - fintech / regtech (NON-construction, e.g. payments, BNPL, compliance)
+#    - consumer DTC / D2C brands
+#    - AI infrastructure / developer tools / agent frameworks
+#    - materials science / green chemistry / bio-based polymers / specialty chemicals
+#    - e-commerce / cross-border marketplaces / Amazon FBA / Shopify brands
+#    - medical devices / diagnostics / digital health
+#    - chemistry — green chemistry, specialty chemicals, bio-materials (coil
+#      coating DIŞINDA chemistry dallari: adhesives, lubricants, polymers,
+#      cosmetics ingredients, food ingredients)
+#    - education tech (UK / TR bazlı niş eğitim)
+#    - PropTech (NON-construction side — e.g. property management SaaS)
+#    - cybersecurity compliance (NON-construction)
+#
+# ❗ founder_fit HESAPLARKEN:
+#    YANLIŞ soru: "Fatih bu sektörde zaten çalıştı mı?"
+#    DOĞRU soru: "Fatih taahhüt ederse ÖĞRENEREK yapabilir mi?
+#                 Kesişim oturuyor mu? Kimse yapamazken o yapabilir mi?"
+#
+#    POZİTİF sinyaller (founder_fit YÜKSEK):
+#      - Karmaşık/teknik öğrenme gerekiyor (Pattern #4 aktif — başkalarını caydırır)
+#      - Fatih'in kombinasyonunu gerektiriyor (TR üretim + UK + AI + cross-border)
+#      - "Yaparım" dedirten iddialı yapı (Pattern #7 aktif)
+#      - Altyapı sahipliği faydalı (fabrika, IT stack, AI fluency)
+#      - Cross-border entity yapısı kritik (UK + TR + UAE + US)
+#
+#    NEGATİF sinyaller (founder_fit DÜŞÜK):
+#      - Türkiye'ye bağlı, taşınabilir değil (concordato riski — Pattern #6 ihlal)
+#      - Saatlik danışmanlık / freelancer modeli (ölçeklenmiyor)
+#      - Fatih'in HİÇBİR kombinasyon boyutuna dokunmuyor
+#      - Yukarıda EXCLUDE edilen sektörlerden biri
+#
+#    NOT: "Sektör bilgisi yok" tek başına founder_fit'i DÜŞÜRMEZ.
+#         Pattern #4 (Derin Öğrenme) ve Pattern #7 (Taahhüt-Önce) aktifse,
+#         sektör bilgisi eksikliği fırsat olarak yorumlanmalı (bariyer = defansibilite).
+# ═══════════════════════════════════════════════════════════════
+
 founder:
   name: "Fatih"
   
