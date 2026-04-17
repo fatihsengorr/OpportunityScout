@@ -1,0 +1,10 @@
+[Unit]
+Description=Wildcatter Layer B — Monthly 1st 07:00 UTC
+
+[Timer]
+OnCalendar=*-*-01 07:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

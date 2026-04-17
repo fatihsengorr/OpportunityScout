@@ -35,7 +35,8 @@ run_step "serendipity"   -m src.cli serendipity --mode daily
 run_step "horizon"       -m src.cli horizon --mode daily
 run_step "explore"       -m src.cli explore --count 2
 run_step "deadlines"     -m src.cli deadlines
-run_step "digest"        -m src.cli digest
+# DROPPED 2026-04-17 (Wildcatter): daily digest replaced by 4-layer output (tomography/theses/candidates)
+# run_step "digest"        -m src.cli digest
 
 echo "========================================"
 log "PIPELINE" "Daily scan complete"

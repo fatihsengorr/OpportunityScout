@@ -1,0 +1,10 @@
+[Unit]
+Description=Wildcatter Layer A — Weekly Friday 06:30 UTC
+
+[Timer]
+OnCalendar=Fri *-*-* 06:30:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

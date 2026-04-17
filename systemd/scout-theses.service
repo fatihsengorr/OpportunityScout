@@ -1,0 +1,20 @@
+[Unit]
+Description=Wildcatter Layer B — Aylık Konvergans Tezleri
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+EnvironmentFile=/opt/opportunity-scout/.env
+ExecStart=/bin/bash -c 'cd /opt/opportunity-scout && /opt/opportunity-scout/venv/bin/python -m src.cli theses'
+TimeoutStartSec=900
+MemoryMax=512M
+Nice=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-theses
+
+[Install]
+WantedBy=multi-user.target

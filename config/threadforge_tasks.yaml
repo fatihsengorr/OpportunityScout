@@ -1,0 +1,178 @@
+# Wildcatter Mod 1 — ThreadForge Beslemesi
+# Kaynak: Open Brain → intelligence/pattern-framework (Mod 1 detayı)
+#
+# ThreadForge üç sütunlu hibrit ConstructionTech şirketi:
+# - Sütun 1 Advisory: BSA Golden Thread compliance danışmanlığı
+# - Sütun 2 Platform: BuildThread AI SaaS ürün ailesi
+# - Sütun 3 Cross-Border Delivery: TR mühendislik yetkinliği UK fiyatının %40 altında
+#
+# Mod 1 bu şirket için DİSİPLİNLİ, DAR arama yapar. 5 görev kategorisi.
+
+tasks:
+
+  - id: 1
+    name: "Vertical Genişleme"
+    short: "vertical_expansion"
+    description: |
+      ThreadForge'un Platform sütunu (BuildThread AI) için bir sonraki compliance
+      vertical adayı. Mevcut: Golden Thread (BSA). Sıradakiler?
+    search_queries:
+      - "UK MEES minimum energy efficiency compliance enforcement 2026 2027"
+      - "UK Net Zero buildings retrofit PAS 2035 compliance deadline"
+      - "EU CSRD corporate sustainability reporting directive deadline 2026"
+      - "NYC Local Law 97 building emissions compliance enforcement 2026"
+      - "EU AI Act high-risk construction AI enforcement 2026 2027"
+      - "UK EPC minimum rating commercial property MEES deadline"
+    filter_keywords:
+      - compliance
+      - regulation
+      - deadline
+      - enforcement
+      - golden thread
+      - vertical
+      - automation
+    mode_prompt_focus: |
+      Bir compliance vertical arıyoruz. Şu şart var:
+      1. 12-36 ay içinde uygulanacak bir deadline mevcut
+      2. Dokümantasyon/takip yükü SaaS otomasyona uygun
+      3. UK ya da EU'da merkezlenmiş
+      4. BuildThread AI mimarisine aktarılabilir (golden thread deseni)
+
+  - id: 2
+    name: "Pilot Müşteri Avı"
+    short: "pilot_hunt"
+    description: |
+      Gateway 3'te tıkanan UK developer'lar, golden thread'de açıkta kalan
+      operatörler, compliance bütçesi ayıran housing associations.
+      ThreadForge'un ilk 10 müşterisi buradan çıkacak.
+    search_queries:
+      - "UK developer Gateway 3 approval delay Building Safety Regulator"
+      - "UK BTR operator golden thread compliance complaint 2026"
+      - "UK housing association compliance budget golden thread 2026"
+      - "UK architect BSA compliance pain point golden thread"
+      - "UK property manager digital record building safety act"
+    filter_keywords:
+      - "Gateway 3"
+      - delay
+      - compliance
+      - pain point
+      - housing association
+      - developer
+    mode_prompt_focus: |
+      Fatih'in satış pipeline'ına girebilecek GERÇEK müşterileri bul.
+      Şirket ismi, LinkedIn profili, yaşadığı spesifik sorun bulmayı hedefle.
+      Jenerik "UK developers" yeterli değil — "X Group complains about Y".
+
+  - id: 3
+    name: "Delivery Hub Büyütme"
+    short: "delivery_scale"
+    description: |
+      ThreadForge Cross-Border Delivery sütunu için TR mühendislik kapasitesi
+      genişletme. Hangi TR BIM/CAD ofisleri atıl kapasite arıyor?
+      Hangi TR mühendisler UK fiyatlarına satabilir?
+    search_queries:
+      - "Turkey BIM CAD engineering office capacity UK export 2026"
+      - "Türkiye mühendislik ofisi Revit BIM dış proje İngiltere"
+      - "Turkey digital twin survey scan-to-BIM remote service capability"
+      - "Turkey construction engineer hire UK timezone remote 2026"
+      - "Turkiye atil mühendislik kapasitesi BIM cad dış satım"
+    filter_keywords:
+      - Turkey
+      - Türkiye
+      - engineering
+      - mühendislik
+      - BIM
+      - capacity
+      - outsource
+      - remote
+    mode_prompt_focus: |
+      TR tarafında ThreadForge'un kullanabileceği mühendislik kapasitesi arıyoruz.
+      Şirket ismi ve atıl kapasite oranı önemli. 40% maliyet avantajı korunmalı.
+
+  - id: 4
+    name: "Sermaye Eşleşmesi"
+    short: "capital_match"
+    description: |
+      UK PropTech/ConstructionTech VC'leri ve angel network'leri kim hareket ediyor?
+      £750K Seed turu için hedef investor listesi.
+    search_queries:
+      - "SFC Capital UK early stage investment PropTech SaaS 2026"
+      - "Pi Labs A/O PropTech Concrete VC Foundamental UK PropTech portfolio 2026"
+      - "UK angel investor PropTech compliance SaaS investment 2026"
+      - "UK ConstructionTech Series A Seed funding rounds 2026"
+      - "SEIS EIS UK PropTech angel network golden thread"
+    filter_keywords:
+      - VC
+      - seed
+      - angel
+      - investor
+      - PropTech
+      - ConstructionTech
+      - funding
+      - portfolio
+    mode_prompt_focus: |
+      ThreadForge Seed turu için investor eşleşmesi arıyoruz.
+      SEIS/EIS tier tercih edilir. Portfolio şirketleri compliance/SaaS olanlar.
+      Son 6 ayda aktif olarak yatırım yapan fonlar.
+
+  - id: 5
+    name: "Rekabet ve Defans"
+    short: "competition_defense"
+    description: |
+      ThreadForge'un rakipleri (Aconex, Procore, Plannerly, BIM Track, Newforma) ne yapıyor?
+      Kim özellik ekliyor, kim müşteri kaybediyor, kim pivotluyor?
+    search_queries:
+      - "Aconex Oracle construction platform new feature 2026 roadmap"
+      - "Procore construction SaaS compliance golden thread feature 2026"
+      - "Plannerly BIM Track Newforma digital construction news 2026"
+      - "UK construction software compliance customer complaint switch 2026"
+      - "ConstructionTech SaaS acquisition M&A 2026 Trimble Oracle Autodesk"
+    filter_keywords:
+      - competitor
+      - acquisition
+      - merger
+      - feature
+      - pivot
+      - customer loss
+      - rival
+    mode_prompt_focus: |
+      ThreadForge'un rekabet haritasını günceliyoruz.
+      Rakip hamleleri + müşterilerinin şikayetleri = ThreadForge'un giriş noktası.
+      Oracle'ın Aconex'i ihmal etmesi bir pencere açabilir.
+
+# ─── Mod 1 Scheduling ─────────────────────────────────────
+
+scheduling:
+  # Haftalık Mod 1 çalışma ritmi: 5 görevin her biri haftada 1 kez
+  cadence: weekly
+  day_of_week: "friday"  # Cuma — Haftalık Dünya Tomografisi ile birlikte
+  # Task rotation: Görevler birer hafta arayla ağırlıklı çalışır
+  # Hafta 1: Görev 1 (Vertical) + Görev 5 (Competition) — stratejik
+  # Hafta 2: Görev 2 (Pilot) + Görev 3 (Delivery) — operasyonel
+  # Hafta 3: Görev 4 (Capital) — tek başına
+  # Hafta 4: Genel tarama (tüm görevler hafif)
+  weekly_rotation:
+    - week: 1
+      tasks: [1, 5]
+    - week: 2
+      tasks: [2, 3]
+    - week: 3
+      tasks: [4]
+    - week: 4
+      tasks: [1, 2, 3, 4, 5]  # Genel haftası
+
+# ─── Output format (ThreadForge feed) ─────────────────────
+
+output:
+  # Haftalık tek rapor, A4 sayfa, 10 dakikada okunmalı
+  format: "markdown"
+  max_length_words: 800
+  sections:
+    - "Bu haftanın görev dağılımı"
+    - "Görev 1 bulgular"
+    - "Görev 2 bulgular"
+    - "..."
+    - "Öncelikli aksiyonlar (top 3)"
+  telegram: false   # Email ve Open Brain'e yazılır — Telegram'da kısa özet
+  email: true
+  open_brain_path: "projects/threadforge/feed/YYYY-WW"

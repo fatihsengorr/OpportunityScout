@@ -1,0 +1,20 @@
+[Unit]
+Description=Wildcatter Layer A — Haftalık Dünya Tomografisi
+After=network-online.target scout-telegram.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+WorkingDirectory=/opt/opportunity-scout
+EnvironmentFile=/opt/opportunity-scout/.env
+ExecStart=/bin/bash -c 'cd /opt/opportunity-scout && /opt/opportunity-scout/venv/bin/python -m src.cli tomography'
+TimeoutStartSec=600
+MemoryMax=512M
+Nice=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=scout-tomography
+
+[Install]
+WantedBy=multi-user.target

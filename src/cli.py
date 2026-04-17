@@ -97,6 +97,63 @@ async def cmd_deep_dive(args):
     print(json.dumps(result, indent=2, default=str))
 
 
+async def cmd_tomography(args):
+    """Layer A — weekly Dünya Tomografisi."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    report = await engine.run_layer_a()
+    print(f"\n🌍 Layer A — {report.get('week_label', '?')}")
+    print(f"   {len(report.get('items', []))} items")
+
+
+async def cmd_theses(args):
+    """Layer B — monthly Konvergans Tezleri."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    report = await engine.run_layer_b()
+    print(f"\n🧠 Layer B — {report.get('month_label', '?')}")
+    print(f"   {len(report.get('theses', []))} theses")
+
+
+async def cmd_candidates(args):
+    """Layer C — quarterly Aday Fırsatlar."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    report = await engine.run_layer_c()
+    print(f"\n🎯 Layer C — {report.get('quarter_label', '?')}")
+    print(f"   {len(report.get('candidates', []))} candidates, "
+          f"{report.get('vay_count', 0)} VAY")
+
+
+async def cmd_mode1(args):
+    """Wildcatter Mod 1 — ThreadForge weekly feed."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    week = getattr(args, 'week', None)
+    result = await engine.run_mode1(week_number=week)
+    print(f"\n✅ Mod 1 Week {result.get('week_label', '?')}")
+    print(f"  Tasks run: {result.get('tasks_run', 0)}")
+    for tr in result.get('task_results', []):
+        if tr.get('error'):
+            print(f"  ⚠️ {tr.get('task_name', '?')}: {tr['error']}")
+        else:
+            findings = len(tr.get('findings', []))
+            print(f"  ✓ {tr.get('task_name', '?')}: {findings} bulgu")
+
+
+async def cmd_mode2(args):
+    """Wildcatter Mod 2 — unicorn hunt (sector-agnostic)."""
+    from .scout_engine import ScoutEngine
+    engine = ScoutEngine()
+    num = getattr(args, 'searches', 3)
+    result = await engine.run_mode2(num_searches=num)
+    print(f"\n✅ Mod 2 complete")
+    print(f"  Raw: {result.get('candidates_raw', 0)}")
+    print(f"  After filter: {result.get('candidates_filtered', 0)}")
+    print(f"  Evaluated: {result.get('candidates_evaluated', 0)}")
+    print(f"  🌟 VAY: {result.get('vay_count', 0)}")
+
+
 async def cmd_patterns(args):
     """Evaluate 7 pattern inventory for an opportunity."""
     from .scout_engine import ScoutEngine
@@ -748,6 +805,30 @@ def main():
     subparsers.add_parser('signals',
                           help='Scan external signals (hiring, funding)')
 
+    # Layer A — Dünya Tomografisi (weekly Friday)
+    subparsers.add_parser('tomography',
+                          help="Layer A — weekly Dünya Tomografisi")
+
+    # Layer B — Konvergans Tezleri (monthly 1st)
+    subparsers.add_parser('theses',
+                          help="Layer B — monthly Konvergans Tezleri")
+
+    # Layer C — Aday Fırsatlar (quarterly)
+    subparsers.add_parser('candidates',
+                          help="Layer C — quarterly Aday Fırsatlar")
+
+    # Mode 1 — ThreadForge feed
+    mode1_parser = subparsers.add_parser('mode1',
+                                          help="Wildcatter Mod 1 — ThreadForge weekly feed")
+    mode1_parser.add_argument('--week', type=int, default=None,
+                              help='Week number 1-4 (rotation). Default: current ISO week')
+
+    # Mode 2 — unicorn hunt
+    mode2_parser = subparsers.add_parser('mode2',
+                                          help="Wildcatter Mod 2 — sector-agnostic unicorn hunt")
+    mode2_parser.add_argument('--searches', type=int, default=3,
+                              help='Number of independent search angles (default: 3)')
+
     # Patterns — 7 pattern inventory evaluation
     pat_parser = subparsers.add_parser('patterns',
                                         help="Evaluate Fatih's 7 pattern inventory")
@@ -861,6 +942,11 @@ def main():
         'signals': cmd_signals,
         'patterns': cmd_patterns,
         'wow': cmd_wow,
+        'mode1': cmd_mode1,
+        'mode2': cmd_mode2,
+        'tomography': cmd_tomography,
+        'theses': cmd_theses,
+        'candidates': cmd_candidates,
         'score': cmd_score,
         'evolve': cmd_evolve,
         'generate': cmd_generate,

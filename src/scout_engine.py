@@ -46,6 +46,9 @@ from .consensus_scorer import ConsensusScorer
 from .signal_scanner import SignalScanner
 from .pattern_matcher import PatternMatcher
 from .wow_threshold import WowThreshold
+from .wildcatter_mode1 import WildcatterMode1
+from .wildcatter_mode2 import WildcatterMode2
+from .wildcatter_layers import WildcatterLayers
 
 logger = logging.getLogger("scout.engine")
 
@@ -82,6 +85,10 @@ class ScoutEngine:
         self.signals = SignalScanner(self.config, self.kb)
         self.patterns = PatternMatcher(self.config, self.kb)
         self.wow = WowThreshold(self.config, self.kb)
+        self.mode1 = WildcatterMode1(self.config, self.kb, self.brain)
+        self.mode2 = WildcatterMode2(self.config, self.kb, self.patterns, self.wow)
+        self.layers = WildcatterLayers(self.config, self.kb, self.brain,
+                                        self.patterns, self.wow)
 
         # Initialize Intelligence Mesh event bus
         self.event_bus = EventBus(self.kb)
@@ -1085,6 +1092,131 @@ class ScoutEngine:
         msg += self.wow.format_full(result)
         await self.telegram.send_text(msg)
         return {"opportunity_id": opp_id, "wow": result}
+
+    async def run_layer_a(self) -> dict:
+        """Generate weekly Layer A — Dünya Tomografisi."""
+        report = self.layers.generate_layer_a()
+        # Email
+        try:
+            subject = f"🌍 Tomografi — {report.get('week_label', '?')}"
+            html = f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{report.get('summary_md', '')}</pre>"
+            if hasattr(self.email, 'send_raw_html'):
+                await self.email.send_raw_html(subject, html)
+        except Exception as e:
+            logger.warning(f"Layer A email failed: {e}")
+        # Telegram short
+        try:
+            items = len(report.get('items', []))
+            await self.telegram.send_text(
+                f"🌍 *Dünya Tomografisi — {report.get('week_label', '?')}*\n"
+                f"{items} anomali gözlemlendi. Open Brain'e kaydedildi.\n"
+                f"_Tam rapor email'de._"
+            )
+        except Exception as e:
+            logger.warning(f"Layer A telegram failed: {e}")
+        return report
+
+    async def run_layer_b(self) -> dict:
+        """Generate monthly Layer B — Konvergans Tezleri."""
+        report = self.layers.generate_layer_b()
+        try:
+            subject = f"🧠 Konvergans Tezleri — {report.get('month_label', '?')}"
+            html = f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{report.get('summary_md', '')}</pre>"
+            if hasattr(self.email, 'send_raw_html'):
+                await self.email.send_raw_html(subject, html)
+        except Exception as e:
+            logger.warning(f"Layer B email failed: {e}")
+        try:
+            await self.telegram.send_text(
+                f"🧠 *Konvergans Tezleri — {report.get('month_label', '?')}*\n"
+                f"{len(report.get('theses', []))} tez. Email + Brain'e kaydedildi."
+            )
+        except Exception as e:
+            logger.warning(f"Layer B telegram failed: {e}")
+        return report
+
+    async def run_layer_c(self) -> dict:
+        """Generate quarterly Layer C — Aday Fırsatlar."""
+        report = self.layers.generate_layer_c()
+        try:
+            # Layer C is pushed to Telegram fully (high-priority layer)
+            summary = report.get('summary_md', '')[:3500]
+            await self.telegram.send_text(summary)
+        except Exception as e:
+            logger.warning(f"Layer C telegram failed: {e}")
+        return report
+
+    async def run_mode1(self, week_number: int = None) -> dict:
+        """Execute Wildcatter Mod 1 (ThreadForge feed) weekly rotation."""
+        logger.info("🎯 Running Wildcatter Mod 1 (ThreadForge feed)...")
+        report = self.mode1.run_weekly(week_number=week_number)
+
+        # Email summary
+        try:
+            subject = f"🎯 ThreadForge Feed — Week {report.get('week_label', '?')}"
+            summary = report.get('summary_md', '')
+            if hasattr(self.email, 'send_raw_html'):
+                # Minimal markdown→html
+                html = f"<pre style='font-family:sans-serif;white-space:pre-wrap'>{summary}</pre>"
+                await self.email.send_raw_html(subject, html)
+        except Exception as e:
+            logger.warning(f"Mod 1 email failed: {e}")
+
+        # Telegram short summary
+        try:
+            task_count = report.get('tasks_run', 0)
+            total_findings = sum(
+                len(t.get('findings', []))
+                for t in report.get('task_results', [])
+                if not t.get('error')
+            )
+            short = (
+                f"🎯 *ThreadForge Feed — Week {report.get('week_label', '?')}*\n"
+                f"{task_count} task koştu, {total_findings} bulgu. "
+                f"Email'e tam rapor gönderildi."
+            )
+            await self.telegram.send_text(short)
+        except Exception as e:
+            logger.warning(f"Mod 1 telegram failed: {e}")
+
+        logger.info(f"🎯 Mod 1 complete: {report.get('tasks_run', 0)} tasks")
+        return report
+
+    async def run_mode2(self, num_searches: int = 3) -> dict:
+        """Execute Wildcatter Mod 2 (sector-agnostic unicorn hunt)."""
+        logger.info("🦄 Running Wildcatter Mod 2 (unicorn hunt)...")
+        result = self.mode2.run(num_searches=num_searches)
+
+        opportunities = result.get('opportunities', [])
+        vay_count = result.get('vay_count', 0)
+
+        # Send VAY alerts (new special format)
+        for opp in opportunities:
+            if opp.get('is_vay'):
+                opp['_is_vay'] = True
+                try:
+                    await self.telegram.send_fire_alert(opp)
+                except Exception as e:
+                    logger.warning(f"VAY alert failed: {e}")
+
+        # Telegram summary
+        try:
+            summary = (
+                f"🦄 *Wildcatter Mod 2 — Unicorn Avı*\n\n"
+                f"Raw candidates: {result.get('candidates_raw', 0)}\n"
+                f"Construction filter sonrası: {result.get('candidates_filtered', 0)}\n"
+                f"Değerlendirilen: {result.get('candidates_evaluated', 0)}\n"
+                f"🌟 *VAY tier:* {vay_count}\n"
+            )
+            if vay_count == 0:
+                summary += "\n_Bu aramada VAY fırsatı yok. Sistem standardı 'yıl asla boş' — yılda 3-5 hedef._"
+            await self.telegram.send_text(summary)
+        except Exception as e:
+            logger.warning(f"Mod 2 summary failed: {e}")
+
+        logger.info(f"🦄 Mod 2 complete: {vay_count} VAY / "
+                    f"{result.get('candidates_evaluated', 0)} evaluated")
+        return result
 
     async def run_consensus(self, opp_id: str) -> dict:
         """Manually trigger consensus check on an opportunity."""

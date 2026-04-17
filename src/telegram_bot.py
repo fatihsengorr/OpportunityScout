@@ -467,6 +467,13 @@ class TelegramNotifier:
                 "🧬 *Wildcatter Filters*\n"
                 "/patterns OPP-XXX — Fatih'in 7 pattern envanteri\n"
                 "/wow OPP-XXX — Vay eşiği (5 kriter — VAY tier'a terfi kapısı)\n\n"
+                "🎯 *Wildcatter Modları*\n"
+                "/mode1 [hafta] — ThreadForge feed (disiplinli, dar arama)\n"
+                "/mode2 [arama sayısı] — Unicorn avı (sektörsüz, VAY adayları)\n\n"
+                "📚 *4 Katmanlı Çıktı*\n"
+                "/tomography — Layer A: Haftalık Dünya Tomografisi\n"
+                "/theses — Layer B: Aylık Konvergans Tezleri\n"
+                "/candidates — Layer C: Üç Aylık Aday Fırsatlar\n\n"
                 "/help — Show this message"
             )
             await update.message.reply_text(msg)
@@ -720,6 +727,52 @@ class TelegramNotifier:
                     "(Set SERPAPI_KEY env var to enable Google Jobs.)"
                 )
 
+        async def cmd_tomography(update: Update, context):
+            """Layer A — weekly Dünya Tomografisi."""
+            await update.message.reply_text(
+                "🌍 Layer A — Dünya Tomografisi oluşturuluyor... 2-3 dk."
+            )
+            await scout_engine.run_layer_a()
+
+        async def cmd_theses(update: Update, context):
+            """Layer B — monthly Konvergans Tezleri."""
+            await update.message.reply_text(
+                "🧠 Layer B — Konvergans Tezleri oluşturuluyor... 3-5 dk."
+            )
+            await scout_engine.run_layer_b()
+
+        async def cmd_candidates(update: Update, context):
+            """Layer C — quarterly Aday Fırsatlar."""
+            await update.message.reply_text(
+                "🎯 Layer C — Aday Fırsatlar listeleniyor..."
+            )
+            await scout_engine.run_layer_c()
+
+        async def cmd_mode1(update: Update, context):
+            """Wildcatter Mod 1 — ThreadForge feed."""
+            await update.message.reply_text(
+                "🎯 ThreadForge feed (Mod 1) çalışıyor... 5-8 dk."
+            )
+            try:
+                week = int(context.args[0]) if context.args else None
+            except (ValueError, IndexError):
+                week = None
+            result = await scout_engine.run_mode1(week_number=week)
+            logger.info(f"Mod 1 done: {result.get('tasks_run')} tasks")
+
+        async def cmd_mode2(update: Update, context):
+            """Wildcatter Mod 2 — unicorn hunt."""
+            await update.message.reply_text(
+                "🦄 Unicorn hunt (Mod 2) başlıyor... 10-15 dk. Sektörsüz arama."
+            )
+            try:
+                num = int(context.args[0]) if context.args else 3
+                num = max(1, min(5, num))
+            except (ValueError, IndexError):
+                num = 3
+            result = await scout_engine.run_mode2(num_searches=num)
+            logger.info(f"Mod 2 done: VAY={result.get('vay_count', 0)}")
+
         async def cmd_patterns(update: Update, context):
             """Evaluate Fatih's 7 pattern inventory."""
             args = context.args
@@ -955,6 +1008,11 @@ class TelegramNotifier:
         app.add_handler(CommandHandler("signals", cmd_signals))
         app.add_handler(CommandHandler("patterns", cmd_patterns))
         app.add_handler(CommandHandler("wow", cmd_wow))
+        app.add_handler(CommandHandler("mode1", cmd_mode1))
+        app.add_handler(CommandHandler("mode2", cmd_mode2))
+        app.add_handler(CommandHandler("tomography", cmd_tomography))
+        app.add_handler(CommandHandler("theses", cmd_theses))
+        app.add_handler(CommandHandler("candidates", cmd_candidates))
         app.add_handler(CommandHandler("help", cmd_help))
         app.add_handler(CommandHandler("start", cmd_help))
         app.add_handler(CallbackQueryHandler(on_feedback_button, pattern="^fb:"))
