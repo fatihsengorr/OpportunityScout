@@ -34,8 +34,9 @@ class PatternMatcher:
         self.config = config
         self.kb = knowledge_base
         self.llm = LLMRouter(config)
-        # Sonnet — pattern eval requires reasoning, cheapness secondary
-        self.model = self.llm.get_model('scoring')
+        # Akıllı Konservatif: rubric-driven scoring (her pattern için yes/no + reason),
+        # Gemini Flash yeterli (config'de pattern_eval key)
+        self.model = self.llm.get_model('pattern_eval')
         self.patterns = self._load_patterns()
         self._ensure_schema()
 

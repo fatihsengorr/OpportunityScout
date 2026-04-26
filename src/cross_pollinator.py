@@ -40,7 +40,10 @@ class CrossPollinator:
         self.event_bus = event_bus
 
         self.llm = LLMRouter(config)
-        self.model_opus = self.llm.get_model('weekly')
+        # Akıllı Konservatif: cross-pollination = saf yaratıcı sentez,
+        # Sonnet override (config'de cross_pollinator key)
+        self.model_opus = self.llm.get_model('cross_pollinator')
+        # Hybrid search angle — Gemini Flash (web search ile)
         self.model_sonnet = self.llm.get_model('daily')
 
     def run_cross_pollination(self) -> dict:

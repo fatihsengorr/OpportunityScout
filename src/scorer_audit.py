@@ -29,8 +29,10 @@ class ScorerAudit:
         self.kb = knowledge_base
         self.brain = brain_client
         self.llm = LLMRouter(config)
-        # Audit uses the weekly model (Claude Sonnet) — Opus overkill for this
-        self.model = self.llm.get_model('weekly')
+        # Akıllı Konservatif: drift audit MUST use a different model from scorer
+        # to avoid shared blind spots (Hassabis insight). Scorer is Gemini Flash;
+        # audit uses Opus (config'de drift_audit key).
+        self.model = self.llm.get_model('drift_audit')
         self._ensure_schema()
 
     def _ensure_schema(self):

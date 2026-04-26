@@ -35,7 +35,9 @@ class WowThreshold:
         self.config = config
         self.kb = knowledge_base
         self.llm = LLMRouter(config)
-        self.model = self.llm.get_model('scoring')
+        # Akıllı Konservatif: 5 binary kriter (PASS/FAIL + reason),
+        # Gemini Flash yeterli (config'de wow_eval key)
+        self.model = self.llm.get_model('wow_eval')
         self.criteria_config = self._load_criteria()
         self._ensure_schema()
 

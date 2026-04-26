@@ -326,21 +326,26 @@ class LLMRouter:
     def get_model(self, mode: str = "daily") -> str:
         """Get the configured model name for a given mode.
 
-        Modes:
-          - daily: Gemini Flash (cheap) or Claude Sonnet (fallback)
-          - weekly: Claude Sonnet (was Opus, now Sonnet for cost saving)
-          - scoring: Claude Sonnet (reliable structured output)
+        Akıllı Konservatif routing (27 Apr 2026):
+          - daily / weekly: Gemini Flash (cheap, web search ok)
+          - scoring: Claude Sonnet (high-stake outputs — Action Kit, Finance)
+          - cross_pollinator / model_generator / layer_b_theses: Sonnet (creative synthesis)
+          - pattern_eval / wow_eval: Gemini Flash (rubric scoring)
+          - drift_audit: Opus (different model from scorer to avoid blind spots)
+          - deep: alias for weekly
+
+        Any explicit key in config['models'] is honored. Unknown modes fall
+        back to 'daily' default.
         """
         models = self._config.get('models', {})
 
-        if mode == "daily":
-            return models.get('daily', 'gemini-2.5-flash')
-        elif mode == "weekly":
-            return models.get('weekly', 'claude-sonnet-4-20250514')
-        elif mode == "scoring":
-            return models.get('scoring', 'claude-sonnet-4-20250514')
-        elif mode == "deep":
-            # Deep dive on demand — use weekly model
-            return models.get('weekly', 'claude-sonnet-4-20250514')
-        else:
-            return models.get('daily', 'gemini-2.5-flash')
+        # Direct lookup first — if key exists in config, use it
+        if mode in models:
+            return models[mode]
+
+        # Aliases / fallbacks
+        if mode == "deep":
+            return models.get('weekly', 'gemini-2.5-flash')
+
+        # Unknown mode → default to daily
+        return models.get('daily', 'gemini-2.5-flash')

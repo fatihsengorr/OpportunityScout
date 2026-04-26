@@ -41,7 +41,9 @@ class BusinessModelGenerator:
         self.config = config
         self.kb = knowledge_base
         self.llm = LLMRouter(config)
-        self.model = self.llm.get_model('weekly')
+        # Akıllı Konservatif: novel business model generation = derin yaratıcı reasoning,
+        # Sonnet override (config'de model_generator key)
+        self.model = self.llm.get_model('model_generator')
         self.max_tokens = 8192
         self._founder_profile = self._load_founder_profile()
         self._system_prompt = self._load_system_prompt()

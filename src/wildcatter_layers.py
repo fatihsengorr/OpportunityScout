@@ -45,9 +45,11 @@ class WildcatterLayers:
         self.patterns = pattern_matcher
         self.wow = wow_threshold
         self.llm = LLMRouter(config)
-        # Layer A uses Gemini (cheap, fresh web), B/C/D use Claude Sonnet (reasoning)
+        # Layer A: Gemini Flash (haftalık tomografi — geniş tarama, taze web)
+        # Layer B: Sonnet (aylık konvergans tezleri — saf yaratıcı sentez)
+        # Layer C: simple DB query, no LLM
         self.daily_model = self.llm.get_model('daily')
-        self.weekly_model = self.llm.get_model('weekly')
+        self.weekly_model = self.llm.get_model('layer_b_theses')
 
     # ─── Layer A: Dünya Tomografisi (Weekly Friday) ────────
 

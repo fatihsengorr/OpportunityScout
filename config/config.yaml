@@ -12,14 +12,32 @@ claude:
 gemini:
   api_key: "${GEMINI_API_KEY}"
 
-# ─── Model Routing (which model for which task) ──────────
-# daily: Gemini Flash ($0.15/M) — web search + opportunity discovery
-# weekly: Claude Sonnet ($3/M) — deep analysis + creative reasoning
-# scoring: Claude Sonnet — reliable structured output for scoring
+# ─── Model Routing — Akıllı Konservatif (27 April 2026) ──────
+# Yaratıcılık-yoğun modüller Sonnet'te, prosedürel olanlar Gemini Flash'ta.
+# Hedef: $50/ay (mevcut $105'ten -%52). VAY üretim kalitesini koru.
+#
+# daily/weekly fallback: çoğu motorun aldığı default
+# scoring: yüksek-stake çıktılar (Action Kit, Financial Modeler, Web Scanner content)
+# cross_pollinator/model_generator/layer_b_theses: yaratıcı sentez — Sonnet
+# pattern_eval/wow_eval: rubric-driven, Gemini yeterli
+# drift_audit: scorer'dan farklı model olmalı (kör nokta paylaşmasın) — Opus
 models:
   daily: "gemini-2.5-flash"
-  weekly: "claude-sonnet-4-20250514"
-  scoring: "claude-sonnet-4-20250514"
+  weekly: "gemini-2.5-flash"          # Localize, Serendipity weekly, Horizon weekly, Mode 2 → Flash
+  scoring: "claude-sonnet-4-20250514" # Web scanner content, Action Kit, Finance — yüksek stake
+
+  # Yaratıcılık-yoğun override'lar (Sonnet kalsın)
+  cross_pollinator: "claude-sonnet-4-20250514"
+  model_generator:  "claude-sonnet-4-20250514"
+  layer_b_theses:   "claude-sonnet-4-20250514"
+
+  # Rubric-driven scoring (Gemini Flash yeterli)
+  pattern_eval: "gemini-2.5-flash"
+  wow_eval:     "gemini-2.5-flash"
+
+  # Drift audit — kör nokta önlemi için scorer'dan farklı model
+  # NOT: Opus 4.7 model identifier teyit edilince güncelle
+  drift_audit: "claude-opus-4-20250514"
 
 # ─── Telegram ─────────────────────────────────────────────
 telegram:
