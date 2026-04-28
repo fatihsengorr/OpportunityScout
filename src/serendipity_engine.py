@@ -24,6 +24,9 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 from .llm_router import LLMRouter
+from .anti_pattern import (
+    is_concept_duplicate, get_anti_pattern_block, apply_dedup_recommendation,
+)
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.serendipity")
@@ -53,12 +56,24 @@ class SerendipityEngine:
         self.llm = LLMRouter(config)
         self.model_light = self.llm.get_model('daily')
         self.model_deep = self.llm.get_model('weekly')
-        self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
+        self._founder_profile_raw = self._load_file(FOUNDER_PROFILE_PATH)
+        self._founder_profile = self._founder_profile_raw  # refreshed per scan
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
         self._min_founder_fit = config.get('serendipity', {}).get(
             'min_founder_fit', 5
         )
         self._sector_rotation = self._load_sector_rotation()
+
+    def _refresh_founder_profile(self):
+        """Anti-Echo: append dynamic 'don't repeat' block to founder profile."""
+        try:
+            anti = get_anti_pattern_block(self.kb, days=30, min_count=3)
+            self._founder_profile = self._founder_profile_raw + "\n\n" + anti
+            if anti:
+                logger.info("🚫 Anti-pattern block enjekte edildi")
+        except Exception as e:
+            logger.warning(f"Anti-pattern refresh failed: {e}")
+            self._founder_profile = self._founder_profile_raw
 
     # ═══════════════════════════════════════════════════════════
     # PUBLIC API
@@ -70,6 +85,7 @@ class SerendipityEngine:
         Cost: ~$0.75 per run.
         """
         logger.info("🎲 Serendipity 4-strategy daily scan starting...")
+        self._refresh_founder_profile()
         return self._run_all_strategies(mode="daily", model=self.model_light,
                                          max_tokens=4096, max_loops=15)
 
@@ -79,6 +95,7 @@ class SerendipityEngine:
         Cost: ~$3 per run.
         """
         logger.info("🎲 Serendipity 4-strategy weekly deep scan starting...")
+        self._refresh_founder_profile()
         return self._run_all_strategies(mode="weekly", model=self.model_deep,
                                          max_tokens=8192, max_loops=25)
 
@@ -577,10 +594,30 @@ Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}
             opp['weighted_total'] = self._calculate_weighted_total(opp.get('scores', {}))
             opp['tier'] = self._determine_tier(opp['weighted_total'])
 
-            if not self.kb.is_duplicate(opp.get('title', ''), source_type,
-                                          sector=opp.get('sector', ''), tags=opp.get('tags', [])):
-                self.kb.save_opportunity(opp)
-                stored.append(opp)
+            if self.kb.is_duplicate(opp.get('title', ''), source_type,
+                                      sector=opp.get('sector', ''), tags=opp.get('tags', [])):
+                continue
+
+            # Anti-Echo: kavram-seviyesi dedup
+            try:
+                dup = is_concept_duplicate(opp, self.kb, self.llm)
+                should_save, opp = apply_dedup_recommendation(opp, dup)
+                if not should_save:
+                    logger.info(
+                        f"🔁 Echo rejected: '{opp.get('title', '?')[:50]}' "
+                        f"(signature: {dup.get('concept_signature', '?')[:50]})"
+                    )
+                    continue
+                if opp.get('_echo_downgraded'):
+                    logger.info(
+                        f"⬇️ Echo downgraded: '{opp.get('title', '?')[:50]}' "
+                        f"{opp.get('_echo_original_tier')}→{opp.get('tier')}"
+                    )
+            except Exception as e:
+                logger.warning(f"Concept dedup skipped: {e}")
+
+            self.kb.save_opportunity(opp)
+            stored.append(opp)
 
         return stored
 

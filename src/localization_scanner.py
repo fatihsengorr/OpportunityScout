@@ -20,6 +20,9 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from .llm_router import LLMRouter
+from .anti_pattern import (
+    is_concept_duplicate, get_anti_pattern_block, apply_dedup_recommendation,
+)
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.localization")
@@ -44,8 +47,20 @@ class LocalizationScanner:
         self.kb = knowledge_base
         self.llm = LLMRouter(config)
         self.model = self.llm.get_model('weekly')
-        self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
+        self._founder_profile_raw = self._load_file(FOUNDER_PROFILE_PATH)
+        self._founder_profile = self._founder_profile_raw  # refreshed per scan
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
+
+    def _refresh_founder_profile(self):
+        """Anti-Echo: append dynamic 'don't repeat' block to founder profile."""
+        try:
+            anti = get_anti_pattern_block(self.kb, days=30, min_count=3)
+            self._founder_profile = self._founder_profile_raw + "\n\n" + anti
+            if anti:
+                logger.info("🚫 Anti-pattern block enjekte edildi (saturated concepts)")
+        except Exception as e:
+            logger.warning(f"Anti-pattern refresh failed: {e}")
+            self._founder_profile = self._founder_profile_raw
 
     # ═══════════════════════════════════════════════════════════
     # PUBLIC API
@@ -57,6 +72,9 @@ class LocalizationScanner:
         """
         logger.info(f"🌍 5-Strategy Localization scan starting"
                     f"{f' (focus: {focus_sector})' if focus_sector else ''}...")
+
+        # Anti-Echo: dinamik anti-pattern bloku güncelle
+        self._refresh_founder_profile()
 
         known_titles = self._get_known_titles()
         previous = self._get_previous_localizations()
@@ -87,15 +105,42 @@ class LocalizationScanner:
 
                 # Finalize and store
                 stored = []
+                rejected_echoes = 0
                 for opp in opps:
                     opp['_strategy'] = strategy_name
                     opp = self._finalize_opportunity(opp)
-                    if not self.kb.is_duplicate(
+
+                    # Layer 1: title-based duplicate
+                    if self.kb.is_duplicate(
                         opp.get('title', ''), 'localization_scanner',
                         sector=opp.get('sector'), tags=opp.get('tags', [])
                     ):
-                        self.kb.save_opportunity(opp)
-                        stored.append(opp)
+                        continue
+
+                    # Layer 2: kavram-seviyesi dedup (Anti-Echo Aşama 1)
+                    try:
+                        dup = is_concept_duplicate(opp, self.kb, self.llm)
+                        should_save, opp = apply_dedup_recommendation(opp, dup)
+                        if not should_save:
+                            rejected_echoes += 1
+                            logger.info(
+                                f"🔁 Echo rejected: '{opp.get('title', '?')[:50]}' "
+                                f"(similar to {dup.get('similar_count', 0)} existing — "
+                                f"signature: {dup.get('concept_signature', '?')[:50]})"
+                            )
+                            continue
+                        if opp.get('_echo_downgraded'):
+                            logger.info(
+                                f"⬇️ Echo downgraded: '{opp.get('title', '?')[:50]}' "
+                                f"{opp.get('_echo_original_tier')}→{opp.get('tier')}"
+                            )
+                    except Exception as e:
+                        logger.warning(f"Concept dedup skipped: {e}")
+
+                    self.kb.save_opportunity(opp)
+                    stored.append(opp)
+                if rejected_echoes:
+                    logger.info(f"🔁 {strategy_name}: {rejected_echoes} echo rejected")
 
                 # Track performance
                 fire_count = len([o for o in stored if o.get('tier') == 'FIRE'])

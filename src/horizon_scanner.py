@@ -29,6 +29,9 @@ import yaml
 from datetime import datetime
 from pathlib import Path
 from .llm_router import LLMRouter
+from .anti_pattern import (
+    is_concept_duplicate, get_anti_pattern_block, apply_dedup_recommendation,
+)
 from src.scoring_utils import calculate_weighted_total, determine_tier
 
 logger = logging.getLogger("scout.horizon")
@@ -54,10 +57,22 @@ class HorizonScanner:
         self.config = config
         self.kb = knowledge_base
         self.llm = LLMRouter(config)
-        self._founder_profile = self._load_file(FOUNDER_PROFILE_PATH)
+        self._founder_profile_raw = self._load_file(FOUNDER_PROFILE_PATH)
+        self._founder_profile = self._founder_profile_raw  # refreshed per scan
         self._system_prompt = self._load_file(SYSTEM_PROMPT_PATH)
         self._lens_config = self._load_lens_config()
         self._min_founder_fit = config.get('horizon', {}).get('min_founder_fit', 4)
+
+    def _refresh_founder_profile(self):
+        """Anti-Echo: append dynamic 'don't repeat' block to founder profile."""
+        try:
+            anti = get_anti_pattern_block(self.kb, days=30, min_count=3)
+            self._founder_profile = self._founder_profile_raw + "\n\n" + anti
+            if anti:
+                logger.info("🚫 Anti-pattern block enjekte edildi")
+        except Exception as e:
+            logger.warning(f"Anti-pattern refresh failed: {e}")
+            self._founder_profile = self._founder_profile_raw
 
     # ═══════════════════════════════════════════════════════════
     # PUBLIC API
@@ -68,6 +83,7 @@ class HorizonScanner:
         Run 3 rotating lenses with Sonnet for fast daily discovery.
         Returns dict with all opportunities found.
         """
+        self._refresh_founder_profile()
         schedule = self._lens_config.get('schedule', {})
         model = self.llm.get_model('daily')
         max_tokens = schedule.get('daily_max_tokens', 4096)
@@ -89,6 +105,7 @@ class HorizonScanner:
         """
         Run ALL 7 lenses with Opus for deep weekly discovery.
         """
+        self._refresh_founder_profile()
         schedule = self._lens_config.get('schedule', {})
         model = self.llm.get_model('weekly')
         max_tokens = schedule.get('weekly_max_tokens', 8192)
@@ -766,11 +783,31 @@ Format: {{"opportunities": [...], "signals": [...], "new_frontiers": [...]}}"""
             opp['weighted_total'] = calculate_weighted_total(opp.get('scores', {}))
             opp['tier'] = determine_tier(opp['weighted_total'])
 
-            if not self.kb.is_duplicate(opp.get('title', ''), source_type,
-                                        sector=opp.get('sector', ''),
-                                        tags=opp.get('tags', [])):
-                self.kb.save_opportunity(opp)
-                stored.append(opp)
+            if self.kb.is_duplicate(opp.get('title', ''), source_type,
+                                    sector=opp.get('sector', ''),
+                                    tags=opp.get('tags', [])):
+                continue
+
+            # Anti-Echo: kavram-seviyesi dedup
+            try:
+                dup = is_concept_duplicate(opp, self.kb, self.llm)
+                should_save, opp = apply_dedup_recommendation(opp, dup)
+                if not should_save:
+                    logger.info(
+                        f"🔁 Echo rejected: '{opp.get('title', '?')[:50]}' "
+                        f"(signature: {dup.get('concept_signature', '?')[:50]})"
+                    )
+                    continue
+                if opp.get('_echo_downgraded'):
+                    logger.info(
+                        f"⬇️ Echo downgraded: '{opp.get('title', '?')[:50]}' "
+                        f"{opp.get('_echo_original_tier')}→{opp.get('tier')}"
+                    )
+            except Exception as e:
+                logger.warning(f"Concept dedup skipped: {e}")
+
+            self.kb.save_opportunity(opp)
+            stored.append(opp)
 
         return stored
 

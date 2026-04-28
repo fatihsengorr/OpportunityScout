@@ -22,6 +22,9 @@ from datetime import datetime, timedelta
 from src.scoring_utils import calculate_weighted_total, determine_tier
 from pathlib import Path
 from .llm_router import LLMRouter
+from .anti_pattern import (
+    is_concept_duplicate, get_anti_pattern_block, apply_dedup_recommendation,
+)
 
 logger = logging.getLogger("scout.generator")
 
@@ -45,8 +48,20 @@ class BusinessModelGenerator:
         # Sonnet override (config'de model_generator key)
         self.model = self.llm.get_model('model_generator')
         self.max_tokens = 8192
-        self._founder_profile = self._load_founder_profile()
+        self._founder_profile_raw = self._load_founder_profile()
+        self._founder_profile = self._founder_profile_raw  # refreshed per generate
         self._system_prompt = self._load_system_prompt()
+
+    def _refresh_founder_profile(self):
+        """Anti-Echo: append dynamic 'don't repeat' block to founder profile."""
+        try:
+            anti = get_anti_pattern_block(self.kb, days=30, min_count=3)
+            self._founder_profile = self._founder_profile_raw + "\n\n" + anti
+            if anti:
+                logger.info("🚫 Anti-pattern block enjekte edildi")
+        except Exception as e:
+            logger.warning(f"Anti-pattern refresh failed: {e}")
+            self._founder_profile = self._founder_profile_raw
 
     LENS_NAMES = ['cross_pollination', 'first_principles', 'inversion']
 
@@ -66,6 +81,9 @@ class BusinessModelGenerator:
         """
         logger.info(f"💡 3-Lens Generator: {count} models"
                     f"{f' (focus: {focus_area})' if focus_area else ''}...")
+
+        # Anti-Echo: dinamik anti-pattern bloku
+        self._refresh_founder_profile()
 
         # Phase 1: Gather intelligence + build DNA exclusion list
         context = self._build_intelligence_context(focus_area)
@@ -861,6 +879,24 @@ Return results in this EXACT JSON structure:
     def _store_model(self, model: dict):
         """Store generated model in both the opportunities table and
         the dedicated generated_models table."""
+        # Anti-Echo: kavram-seviyesi dedup
+        try:
+            dup = is_concept_duplicate(model, self.kb, self.llm)
+            should_save, model = apply_dedup_recommendation(model, dup)
+            if not should_save:
+                logger.info(
+                    f"🔁 Generated model echo rejected: '{model.get('title', '?')[:50]}' "
+                    f"(signature: {dup.get('concept_signature', '?')[:50]})"
+                )
+                return  # don't save echo'd model at all
+            if model.get('_echo_downgraded'):
+                logger.info(
+                    f"⬇️ Echo downgraded: '{model.get('title', '?')[:50]}' "
+                    f"{model.get('_echo_original_tier')}→{model.get('tier')}"
+                )
+        except Exception as e:
+            logger.warning(f"Concept dedup skipped: {e}")
+
         # Store as opportunity (for portfolio view and scoring)
         self.kb.save_opportunity(model)
 
