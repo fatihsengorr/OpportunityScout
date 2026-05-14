@@ -851,13 +851,29 @@ Format: {{"opportunities": [...], "signals": [...], "new_frontiers": [...]}}"""
         except json.JSONDecodeError:
             pass
 
-        # Strategy 2: Extract from code fence
+        # Strategy 2: Extract from code fence (closed)
         fence_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
         if fence_match:
             try:
                 return json.loads(fence_match.group(1))
             except json.JSONDecodeError:
                 pass
+
+        # Strategy 2b: Open code fence (Gemini truncated before closing ```)
+        stripped = text.strip()
+        if stripped.startswith('```'):
+            lines = stripped.split('\n', 1)
+            if len(lines) > 1:
+                body = lines[1]
+                body = re.sub(r'\n?```\s*$', '', body)
+                try:
+                    return json.loads(body.strip())
+                except json.JSONDecodeError:
+                    try:
+                        repaired = self._repair_truncated_json(body.strip())
+                        return json.loads(repaired)
+                    except (json.JSONDecodeError, Exception):
+                        pass
 
         # Strategy 3: Find first { to last }
         first_brace = text.find('{')

@@ -87,7 +87,7 @@ class SerendipityEngine:
         logger.info("🎲 Serendipity 4-strategy daily scan starting...")
         self._refresh_founder_profile()
         return self._run_all_strategies(mode="daily", model=self.model_light,
-                                         max_tokens=4096, max_loops=15)
+                                         max_tokens=8192, max_loops=15)
 
     def weekly_deep_scan(self) -> dict:
         """
@@ -729,13 +729,34 @@ Format: {{"opportunities": [...], "signals": [...], "cross_pollinations": [...]}
         except json.JSONDecodeError:
             pass
 
-        # Strategy 2: Extract from ```json ... ``` code fence
+        # Strategy 2: Extract from ```json ... ``` code fence (closed)
         json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group(1).strip())
             except json.JSONDecodeError:
                 pass
+
+        # Strategy 2b: Open code fence (Gemini truncated before closing ```)
+        # Strip leading ```json/``` and try to parse remainder
+        stripped = text.strip()
+        if stripped.startswith('```'):
+            # Remove first line (```json or just ```)
+            lines = stripped.split('\n', 1)
+            if len(lines) > 1:
+                body = lines[1]
+                # Remove trailing fence if exists
+                body = re.sub(r'\n?```\s*$', '', body)
+                try:
+                    return json.loads(body.strip())
+                except json.JSONDecodeError:
+                    # Try repair on the de-fenced body
+                    repaired = self._repair_truncated_json(body.strip())
+                    if repaired:
+                        try:
+                            return json.loads(repaired)
+                        except json.JSONDecodeError:
+                            pass
 
         # Strategy 3: Find first '{' that starts a JSON object with "opportunities"
         first_brace = text.find('{')

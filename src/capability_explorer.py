@@ -518,13 +518,30 @@ If no opportunities found, return:
         except json.JSONDecodeError:
             pass
 
-        # Strategy 2: Code fence
+        # Strategy 2: Code fence (closed)
         json_match = re.search(r'```(?:json)?\s*\n?(.*?)\n?```', text, re.DOTALL)
         if json_match:
             try:
                 return json.loads(json_match.group(1).strip())
             except json.JSONDecodeError:
                 pass
+
+        # Strategy 2b: Open code fence (Gemini truncated before closing ```)
+        stripped = text.strip()
+        if stripped.startswith('```'):
+            lines = stripped.split('\n', 1)
+            if len(lines) > 1:
+                body = lines[1]
+                body = re.sub(r'\n?```\s*$', '', body)
+                try:
+                    return json.loads(body.strip())
+                except json.JSONDecodeError:
+                    repaired = self._repair_truncated_json(body.strip())
+                    if repaired:
+                        try:
+                            return json.loads(repaired)
+                        except json.JSONDecodeError:
+                            pass
 
         # Strategy 3: Find first '{' and parse from there
         first_brace = text.find('{')
